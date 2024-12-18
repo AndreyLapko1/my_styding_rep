@@ -1,0 +1,16 @@
+$map: {
+    input: "$array", // - for <var> in <array>: <expression>
+        as: "var", // - переменная
+        in: {"expression"
+    // - переменная, которая имеет в себе значение = "$$item.amount"
+    }  // - тело цикла
+}
+
+// $lookup - leftjoin
+
+$lookup: {
+        from: "collection",
+        localfield: "field from collection",
+        foreignfield: "other field from collection",
+        as: "name field for join"
+}
