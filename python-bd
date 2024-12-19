@@ -1,0 +1,87 @@
+import re
+import mysql.connector
+def db_connect(name: str):
+    try:
+        conn = mysql.connector.connect(
+                        host='ich-db.edu.itcareerhub.de',
+                        user='ich1',
+                        password='password',
+                        database=name
+                        )
+        cursor = conn.cursor()
+        print(f'Connected to {name}\n')
+    except mysql.connector.Error as err:
+        print(f"Something went wrong: {err}")
+    return conn, cursor
+
+conn, cursor = db_connect('ich_edit') #выбор схемы
+
+cursor.execute('SHOW TABLES')
+table_list = cursor.fetchall()
+for index, table in enumerate(table_list, start=1):
+    print(f'{index}. {table[0]}')
+
+numbs = int(input('Enter the number of tables: '))
+
+tables = []
+for _ in range(numbs):
+    choice_table = int(input(f'Select a table (1 - {len(table_list)}): '))
+    tables.append(table_list[choice_table - 1][0])
+print(tables)
+if len(tables) != 1:
+    if 'users' in tables and 'sales' in tables and 'product' in tables:
+        print('user.id   user.name   user.age   p.prod   p.quantity')
+        cursor.execute(f'select u.id, u.name, u.age, p.prod, p.quantity from users u  inner join sales s on u.id = s.id inner join product p on s.pid = p.pid')
+        cursor.fetchall()
+        choise = str(input('Select name: '))
+        try:
+            cursor.execute(
+                f'''
+                        SELECT u.id, u.name, p.pid, p.prod, p.quantity
+                        FROM ich_edit.sales s
+                        inner join users as u
+                                on u.id = s.id and u.name = %s
+                        inner join ich_edit.product p
+                        on s.pid = p.pid
+                            ''', (choise,))
+            if cursor.fetchone() is None:
+                print(f'Not found user: {choise} with sells')
+        except mysql.connector.Error as err:
+            print(f'Something went wrong: {err}')
+        for row in cursor.fetchall():
+            print(row)
+    else:
+        print('Cannot merge')
+else:
+    cursor.execute(f'describe {tables[0]}')
+    columns = cursor.fetchall()
+    for index, column in enumerate(columns, start=1):
+        print(f'{index}. {column[0]}, {column[1]}', end='\t')
+    choise_column = int(input('\nSelect a column for sampling: '))
+
+    if columns[choise_column - 1][1] == 'int':
+        action = input('Enter action (ex. > = < ): ')
+        action_value = int(input(f'{action}: '))
+        cursor.execute(f'''
+                SELECT * FROM {tables[0]}
+                WHERE {columns[choise_column - 1][0]} {action} {action_value}
+
+
+                ''')
+        for row in cursor.fetchall():
+            print(row, end='\n')
+    # print(type(columns[choise_column - 1][1]))
+    elif re.sub(r'[0-9()]','', columns[choise_column - 1][1]) in ('char', 'varchar'):
+        action = input('Enter action (ex. = / !=): ')
+        action_value = input(f'Select: ')
+        try:
+            cursor.execute(f'''
+                            SELECT * FROM {tables[0]}
+                            WHERE {columns[choise_column - 1][0]} {action} %s
+    
+    
+                            ''', (action, action_value,))
+            for row in cursor.fetchall():
+                print(row, end='\n')
+        except mysql.connector.Error as err:
+            print(f'Not Found')
