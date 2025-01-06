@@ -63,7 +63,7 @@ def show_categories():
     return categories
 
 
-def output(cursor,pattern=None,query=None, i=0, offset=10, limit=10, count=1):
+def output(cursor, pattern=None,query=None, i=0, offset=10, limit=10, count=1):
     offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
     results = cursor.fetchall()
     if not results:
@@ -74,13 +74,12 @@ def output(cursor,pattern=None,query=None, i=0, offset=10, limit=10, count=1):
                 print(f'\t{count}. {row[0].capitalize()}')
                 count += 1
                 i += 1
+        if i == 10:
+            show_more = input('Show more? (y/n): ')
+            if show_more == 'y':
+                cursor.execute(offset_query, (pattern,))
+                output(cursor,pattern=pattern, query=query,offset=offset+10, count=count)
 
-        show_more = input('Show more? (y/n): ')
-        if show_more == 'y':
-
-            cursor.execute(offset_query, (pattern,))
-
-            output(cursor,pattern=pattern, query=query,offset=offset+10, count=count)
 
 
 def history_write(cursor, number_of, filter, pattern):
@@ -93,7 +92,6 @@ def history_write(cursor, number_of, filter, pattern):
 def find_by_actor(cursor, name_find=None, send_to_out=True):
     if name_find is None:
         name_find = input('Enter the actor\'s name: ').upper()
-
 
     base_query = '''
                 select flm.title from film_actor fct
@@ -113,7 +111,7 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
 
 
 
-def find_by_genre(cursor, genre_find=None, send_to_out=True, year=None):
+def find_by_genre(cursor, genre_find=None, send_to_out=True):
     categories = show_categories()
     base_query = '''  
                                 select f.title FROM sakila.film_category fc
@@ -131,7 +129,6 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, year=None):
             join_year = input('Do you want to join year filter?: (y/n): ')
             if join_year == 'y':
                 year = find_by_year(cursor, join=True)
-                print(year)
                 base_query = '''
                             SELECT f.title, cat.name FROM sakila.film_category fcat
                             inner join category cat
@@ -163,16 +160,17 @@ def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
         selected_year = int(input('Enter the year of release: '))
         if join:
             return selected_year
-    base_query = '''
-                    SELECT title FROM sakila.film
-                    where release_year = %s
-    '''
-    cursor.execute(base_query, (selected_year,))
+        else:
+            base_query = '''
+                            SELECT title FROM sakila.film
+                            where release_year = %s
+            '''
+            cursor.execute(base_query, (selected_year,))
 
-    if send_to_out:
-        output(cursor, pattern=selected_year, query=base_query)
-    else:
-        return cursor, base_query
+            if send_to_out:
+                output(cursor, pattern=selected_year, query=base_query)
+            else:
+                return cursor, base_query
 
 
 
