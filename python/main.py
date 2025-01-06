@@ -77,7 +77,7 @@ def output(cursor,pattern=None,query=None, i=0, offset=10, limit=10, count=1):
 
         show_more = input('Show more? (y/n): ')
         if show_more == 'y':
-            # print(offset_query, 'is pattern: ', pattern)
+
             cursor.execute(offset_query, (pattern,))
 
             output(cursor,pattern=pattern, query=query,offset=offset+10, count=count)
@@ -104,8 +104,7 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
                                     where act.first_name = %s
     '''
     cursor.execute(base_query, (name_find,))
-    # history_write(cursor, 1, 'find by actor', name_find)
-    # history.append_to(1, 'search by actor', name_find)
+
     if send_to_out:
         output(cursor, pattern=name_find, query=base_query)
     else:
@@ -114,23 +113,40 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
 
 
 
-def find_by_genre(cursor, genre_find=None, send_to_out=True):
+def find_by_genre(cursor, genre_find=None, send_to_out=True, year=None):
     categories = show_categories()
     base_query = '''  
-                            select f.title FROM sakila.film_category fc
-                                    inner join category c
-                                    on c.category_id = fc.category_id
-                                    inner join film f
-                                    on f.film_id = fc.film_id
-                                    where c.name = %s
-                                '''
+                                select f.title FROM sakila.film_category fc
+                                        inner join category c
+                                        on c.category_id = fc.category_id
+                                        inner join film f
+                                        on f.film_id = fc.film_id
+                                        where c.name = %s
+                                    '''
     if genre_find is None:
         try:
             genre_find = int(input('\nEnter the genre number: '))
             if genre_find < 1 or genre_find > len(categories):
                 raise ValueError('Expected number within acceptable values')
+            join_year = input('Do you want to join year filter?: (y/n): ')
+            if join_year == 'y':
+                year = find_by_year(cursor, join=True)
+                print(year)
+                base_query = '''
+                            SELECT f.title, cat.name FROM sakila.film_category fcat
+                            inner join category cat
+                            on fcat.category_id = cat.category_id
+                            inner join film f
+                            on f.film_id = fcat.film_id
+                            where f.release_year = %s and cat.name = %s
+                
+                '''
+                cursor.execute(base_query, (year, categories[genre_find - 1][1], ))
+                output(cursor)
 
-            cursor.execute(base_query, (categories[genre_find - 1][1],))
+
+            else:
+                cursor.execute(base_query, (categories[genre_find - 1][1],))
         except (TypeError, ValueError) as e:
             raise Exception(f'Fail. {e}')
 
@@ -142,15 +158,17 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True):
 
 
 
-def find_by_year(cursor,selected_year=None, send_to_out=True):
+def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
     if selected_year is None:
         selected_year = int(input('Enter the year of release: '))
+        if join:
+            return selected_year
     base_query = '''
                     SELECT title FROM sakila.film
                     where release_year = %s
     '''
     cursor.execute(base_query, (selected_year,))
-    # history.append_to(3, 'search by year', f'{selected_year}')
+
     if send_to_out:
         output(cursor, pattern=selected_year, query=base_query)
     else:
@@ -159,7 +177,7 @@ def find_by_year(cursor,selected_year=None, send_to_out=True):
 
 
 def sampling_filter():
-    sampling_options = ['Actor name', 'Genre', 'Year of release', 'Check history','Most common queries', "Exit"]
+    sampling_options = ['Actor name', 'Genre', 'Year of release', 'Check history', 'Most common queries', "Exit"]
     for index, samp_opt in enumerate(sampling_options, start=1):
         print(f'{index}. {samp_opt}', end='\t')
     try:
