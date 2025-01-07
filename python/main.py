@@ -54,6 +54,20 @@ except mysql.connector.Error as err:
 
 
 
+def history_write(filter, pattern):
+    try:
+        connect = mysql.connector.connect(
+            host=os.getenv("host_write"),
+            user=os.getenv("user_write"),
+            password=os.getenv("password_write"),
+            database=os.getenv("db_write"),
+        )
+        cursor = connect.cursor()
+        cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
+        connect.commit()
+        connect.close()
+    except mysql.connector.Error as err:
+        print(f'Something went wrong ', err)
 
 
 def show_categories():
@@ -88,8 +102,6 @@ def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
 
 
 
-def history_write(cursor, number_of, filter, pattern):
-    cursor.execute(f'insert queries values ({number_of}, {filter}, {pattern})')
 
 
 
@@ -108,6 +120,7 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
                                     where act.first_name = %s
     '''
     cursor.execute(base_query, (name_find,))
+    history_write('Actor', name_find)
 
     if send_to_out:
         output(cursor, pattern=name_find, query=base_query)
@@ -158,8 +171,6 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
             if join_year == 'y':
                 out_query(find_by_year, categories[genre_find - 1][1])
 
-
-
             else:
                 cursor.execute(base_query, (categories[genre_find - 1][1],))
         except (TypeError, ValueError) as e:
@@ -167,6 +178,7 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
 
     if send_to_out:
         output(cursor, pattern=categories[genre_find - 1][1], query=base_query)
+        history_write('Genre', categories[genre_find - 1][1])
     else:
         return cursor, base_query
 
@@ -177,27 +189,31 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
 
 def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
     if selected_year is None:
+        base_query = '''
+                                                SELECT title FROM sakila.film
+                                                where release_year = %s
+                                '''
         selected_year = int(input('Enter the year of release: '))
         if not join:
             join_year = input('Do you want to join year filter?: (y/n): ')
             if join_year == 'y':
                 out_query(find_by_genre, selected_year)
+            else:
 
-
+                cursor.execute(base_query, (selected_year,))
         elif join:
             return selected_year
 
-        else:
-            base_query = '''
-                            SELECT title FROM sakila.film
-                            where release_year = %s
-            '''
-            cursor.execute(base_query, (selected_year,))
+        if send_to_out:
+            output(cursor, pattern=selected_year, query=base_query)
+            history_write('Year', selected_year)
 
-            if send_to_out:
-                output(cursor, pattern=selected_year, query=base_query)
-            else:
-                return cursor, base_query
+        else:
+            return cursor, base_query
+
+
+
+
 
 
 
@@ -226,15 +242,15 @@ def sampling_filter():
 
 
         if choise_select == 4:
-            # show_history()
             return True
 
         if choise_select == 5:
             return True
-            # most_common()
+
 
         if choise_select == 6:
             print('Bye')
+            conn.close()
             return False
 
     except (TypeError, ValueError) as e:
