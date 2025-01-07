@@ -1,5 +1,4 @@
 from unittest import result
-
 import mysql.connector
 import os
 from dotenv import load_dotenv
@@ -7,34 +6,28 @@ from collections import Counter
 
 
 
-# class History:
-#     def __init__(self):
-#         self.history = []
-#
-#     def append_to(self, id: int, filter: str, pattern: str):
-#         self.history.append([id, filter, pattern])
-#
-#
-#     def show_history(self):
-#         if self.history:
-#             for row in self.history:
-#                 print(row)
-#         else:
-#             print('History is not exist')
-#         print(self.history)
+def most_common():
+    cursor, connect = connect_to_write()
+    cursor.execute('''
+                SELECT search_by, title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
+                GROUP BY title
+                ORDER BY counter DESC
+                LIMIT 3;
+    ''')
+    output(cursor, hist=True)
 
 
-def most_common(self):
-    if self.history:
-        elements_id = [el[0] for el in self.history]
-        counter = Counter(elements_id)
-        most_common_element = counter.most_common(1)[0][0]
-        for item in self.history:
-            if item[0] == most_common_element:
-                print(f'{item[1]}: {item[2].capitalize()}')
-                break
 
-# history = History()
+def show_history(i=1):
+    cursor, connect = connect_to_write()
+    cursor.execute('select * from requests')
+    output(cursor, hist=True)
+
+
+
+
+
+
 
 
 load_dotenv()
@@ -53,8 +46,7 @@ except mysql.connector.Error as err:
     print(f'Something went wrong ', err)
 
 
-
-def history_write(filter, pattern):
+def connect_to_write():
     try:
         connect = mysql.connector.connect(
             host=os.getenv("host_write"),
@@ -63,6 +55,13 @@ def history_write(filter, pattern):
             database=os.getenv("db_write"),
         )
         cursor = connect.cursor()
+    except mysql.connector.Error as err:
+        print(f'Something went wrong ', err)
+    return cursor, connect
+
+def history_write(filter, pattern):
+    cursor, connect = connect_to_write()
+    try:
         cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
         connect.commit()
         connect.close()
@@ -80,21 +79,28 @@ def show_categories():
 
 
 
-def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
+def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1, hist=False):
     offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
     try:
         results = cursor.fetchall()
-        if results is not None and len(results) > 0:
-            for row in results:
-                if i < 10:
-                    print(f'\t{count}. {row[0].capitalize()}')
+        if results is not None:
+            if hist:
+                for row in results:
+                    print(f'\t{count}. Search by {row[1]}')
                     count += 1
-                    i += 1
-            if i == 10:
-                show_more = input('Show more? (y/n): ')
-                if show_more == 'y':
-                    cursor.execute(offset_query, (pattern,))
-                    output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
+
+            else:
+                for row in results:
+                    if i < 10:
+                        print(f'\t{count}. {row[0].capitalize()}')
+                        count += 1
+                        i += 1
+                if i == 10:
+                    show_more = input('Show more? (y/n): ')
+                    if show_more == 'y':
+                        cursor.execute(offset_query, (pattern,))
+                        output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
+
         else:
             print('\tNot found')
     except Exception as e:
@@ -142,8 +148,10 @@ def out_query(func, pattern):
                                     '''
     if isinstance(a, int):
         cursor.execute(base_query, (a, pattern,))
+        history_write('Year and Genre', f'{a}, {pattern}')
     elif isinstance(a, str):
         cursor.execute(base_query, (pattern, a,))
+        history_write('Year and Genre', f'{pattern}, {a}')
     output(cursor)
 
 
@@ -170,7 +178,7 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
             join_year = input('Do you want to join year filter?: (y/n): ')
             if join_year == 'y':
                 out_query(find_by_year, categories[genre_find - 1][1])
-
+                return
             else:
                 cursor.execute(base_query, (categories[genre_find - 1][1],))
         except (TypeError, ValueError) as e:
@@ -198,6 +206,7 @@ def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
             join_year = input('Do you want to join year filter?: (y/n): ')
             if join_year == 'y':
                 out_query(find_by_genre, selected_year)
+                return
             else:
 
                 cursor.execute(base_query, (selected_year,))
@@ -242,9 +251,11 @@ def sampling_filter():
 
 
         if choise_select == 4:
+            show_history()
             return True
 
         if choise_select == 5:
+            most_common()
             return True
 
 
