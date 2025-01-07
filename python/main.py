@@ -1,3 +1,5 @@
+from unittest import result
+
 import mysql.connector
 import os
 from dotenv import load_dotenv
@@ -63,22 +65,26 @@ def show_categories():
     return categories
 
 
-def output(cursor, pattern=None,query=None, i=0, offset=10, limit=10, count=1):
+
+def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
     offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
-    results = cursor.fetchall()
-    if not results:
-        print(f'\tNot found')
-    else:
-        for row in results:
-            if i < 10:
-                print(f'\t{count}. {row[0].capitalize()}')
-                count += 1
-                i += 1
-        if i == 10:
-            show_more = input('Show more? (y/n): ')
-            if show_more == 'y':
-                cursor.execute(offset_query, (pattern,))
-                output(cursor,pattern=pattern, query=query,offset=offset+10, count=count)
+    try:
+        results = cursor.fetchall()
+        if results is not None and len(results) > 0:
+            for row in results:
+                if i < 10:
+                    print(f'\t{count}. {row[0].capitalize()}')
+                    count += 1
+                    i += 1
+            if i == 10:
+                show_more = input('Show more? (y/n): ')
+                if show_more == 'y':
+                    cursor.execute(offset_query, (pattern,))
+                    output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
+        else:
+            print('\tNot found')
+    except Exception as e:
+        print(f"Error: {e}")
 
 
 
@@ -110,8 +116,28 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
 
 
 
+def out_query(func, pattern):
+    a = func(cursor, join=True)
+    base_query = '''
+                                                SELECT f.title, cat.name FROM sakila.film_category fcat
+                                                inner join category cat
+                                                on fcat.category_id = cat.category_id
+                                                inner join film f
+                                                on f.film_id = fcat.film_id
+                                                where f.release_year = %s and cat.name = %s
 
-def find_by_genre(cursor, genre_find=None, send_to_out=True):
+                                    '''
+    if isinstance(a, int):
+        cursor.execute(base_query, (a, pattern,))
+    elif isinstance(a, str):
+        cursor.execute(base_query, (pattern, a,))
+    output(cursor)
+
+
+
+
+
+def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
     categories = show_categories()
     base_query = '''  
                                 select f.title FROM sakila.film_category fc
@@ -124,29 +150,20 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True):
     if genre_find is None:
         try:
             genre_find = int(input('\nEnter the genre number: '))
+            if join:
+                return categories[genre_find - 1][1]
             if genre_find < 1 or genre_find > len(categories):
                 raise ValueError('Expected number within acceptable values')
             join_year = input('Do you want to join year filter?: (y/n): ')
             if join_year == 'y':
-                year = find_by_year(cursor, join=True)
-                base_query = '''
-                            SELECT f.title, cat.name FROM sakila.film_category fcat
-                            inner join category cat
-                            on fcat.category_id = cat.category_id
-                            inner join film f
-                            on f.film_id = fcat.film_id
-                            where f.release_year = %s and cat.name = %s
-                
-                '''
-                cursor.execute(base_query, (year, categories[genre_find - 1][1], ))
-                output(cursor)
+                out_query(find_by_year, categories[genre_find - 1][1])
+
 
 
             else:
                 cursor.execute(base_query, (categories[genre_find - 1][1],))
         except (TypeError, ValueError) as e:
             raise Exception(f'Fail. {e}')
-
 
     if send_to_out:
         output(cursor, pattern=categories[genre_find - 1][1], query=base_query)
@@ -155,11 +172,21 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True):
 
 
 
+
+
+
 def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
     if selected_year is None:
         selected_year = int(input('Enter the year of release: '))
-        if join:
+        if not join:
+            join_year = input('Do you want to join year filter?: (y/n): ')
+            if join_year == 'y':
+                out_query(find_by_genre, selected_year)
+
+
+        elif join:
             return selected_year
+
         else:
             base_query = '''
                             SELECT title FROM sakila.film
