@@ -1,8 +1,7 @@
-from unittest import result
+
 import mysql.connector
 import os
 from dotenv import load_dotenv
-from collections import Counter
 
 
 
@@ -17,17 +16,10 @@ def most_common():
     output(cursor, hist=True)
 
 
-
 def show_history(i=1):
     cursor, connect = connect_to_write()
     cursor.execute('select * from requests')
     output(cursor, hist=True)
-
-
-
-
-
-
 
 
 load_dotenv()
@@ -59,6 +51,7 @@ def connect_to_write():
         print(f'Something went wrong ', err)
     return cursor, connect
 
+
 def history_write(filter, pattern):
     cursor, connect = connect_to_write()
     try:
@@ -78,7 +71,6 @@ def show_categories():
     return categories
 
 
-
 def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1, hist=False):
     offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
     try:
@@ -96,21 +88,21 @@ def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1, 
                         count += 1
                         i += 1
                 if i == 10:
-                    show_more = input('Show more? (y/n): ')
-                    if show_more == 'y':
-                        cursor.execute(offset_query, (pattern,))
-                        output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
+                    while True:
+                        show_more = input('Show more? (y/n): ')
+                        if show_more == 'y':
+                            cursor.execute(offset_query, (pattern,))
+                            output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
+                            break
+                        elif show_more == 'n':
+                            break
+                        else:
+                            print('Invalid input')
 
         else:
             print('\tNot found')
     except Exception as e:
         print(f"Error: {e}")
-
-
-
-
-
-
 
 
 def find_by_actor(cursor, name_find=None, send_to_out=True):
@@ -134,7 +126,6 @@ def find_by_actor(cursor, name_find=None, send_to_out=True):
         return cursor, base_query
 
 
-
 def out_query(func, pattern):
     a = func(cursor, join=True)
     base_query = '''
@@ -155,9 +146,6 @@ def out_query(func, pattern):
     output(cursor)
 
 
-
-
-
 def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
     categories = show_categories()
     base_query = '''  
@@ -175,12 +163,16 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
                 return categories[genre_find - 1][1]
             if genre_find < 1 or genre_find > len(categories):
                 raise ValueError('Expected number within acceptable values')
-            join_year = input('Do you want to join year filter?: (y/n): ')
-            if join_year == 'y':
-                out_query(find_by_year, categories[genre_find - 1][1])
-                return
-            else:
-                cursor.execute(base_query, (categories[genre_find - 1][1],))
+            while True:
+                join_year = input('Do you want to join year filter?: (y/n): ')
+                if join_year == 'y':
+                    out_query(find_by_year, categories[genre_find - 1][1])
+                    break
+                elif join_year == 'n':
+                    cursor.execute(base_query, (categories[genre_find - 1][1],))
+                    break
+                else:
+                    print('Invalid input')
         except (TypeError, ValueError) as e:
             raise Exception(f'Fail. {e}')
 
@@ -191,11 +183,7 @@ def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
         return cursor, base_query
 
 
-
-
-
-
-def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
+def find_by_year(cursor, selected_year=None, send_to_out=True, join=False):
     if selected_year is None:
         base_query = '''
                                                 SELECT title FROM sakila.film
@@ -203,13 +191,18 @@ def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
                                 '''
         selected_year = int(input('Enter the year of release: '))
         if not join:
-            join_year = input('Do you want to join year filter?: (y/n): ')
-            if join_year == 'y':
-                out_query(find_by_genre, selected_year)
-                return
-            else:
+            while True:
+                join_year = input('Do you want to join year filter?: (y/n): ')
+                if join_year == 'y':
+                    out_query(find_by_genre, selected_year)
+                    break
+                elif join_year == 'n':
+                    cursor.execute(base_query, (selected_year,))
+                    break
 
-                cursor.execute(base_query, (selected_year,))
+                else:
+                    print('Invalid input')
+
         elif join:
             return selected_year
 
@@ -223,9 +216,6 @@ def find_by_year(cursor,selected_year=None, send_to_out=True, join=False):
 
 
 
-
-
-
 def sampling_filter():
     sampling_options = ['Actor name', 'Genre', 'Year of release', 'Check history', 'Most common queries', "Exit"]
     for index, samp_opt in enumerate(sampling_options, start=1):
@@ -235,7 +225,6 @@ def sampling_filter():
         if choise_select < 1 or choise_select > len(sampling_options):
             raise ValueError('Expected number within acceptable values')
 
-
         if choise_select == 1:
             find_by_actor(cursor)
             return True
@@ -244,11 +233,9 @@ def sampling_filter():
             find_by_genre(cursor)
             return True
 
-
         if choise_select == 3:
             find_by_year(cursor)
             return True
-
 
         if choise_select == 4:
             show_history()
@@ -258,7 +245,6 @@ def sampling_filter():
             most_common()
             return True
 
-
         if choise_select == 6:
             print('Bye')
             conn.close()
@@ -266,7 +252,6 @@ def sampling_filter():
 
     except (TypeError, ValueError) as e:
         print(f'Fail. {e}')
-
 
 
 def main():
