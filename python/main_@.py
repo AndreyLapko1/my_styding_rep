@@ -139,8 +139,6 @@ class App:
                                 break
                             else:
                                 print('Invalid input')
-                    else:
-                        print('That\'s all')
 
 
     def search_actor(self):
@@ -157,19 +155,37 @@ class App:
         select_category = int(input('\nSelect genre: '))
         if join:
             return categories[select_category - 1][1]
-        result, query = self.db.search_by_category(categories[select_category - 1][1])
-        self.display(result, query=query, pattern=categories[select_category - 1][1])
+        else:
+            join_year = input('Do you want to join year? (y/n): ')
+            if join_year == 'y':
+                year = self.search_year(join=True)
+                result = self.db.search_by_category_year(year, categories[select_category - 1][1])
+                self.display(*result)
+            elif join_year == 'n':
+                result, query = self.db.search_by_category(categories[select_category - 1][1])
+                self.display(result, query=query, pattern=categories[select_category - 1][1])
+            else:
+                print('Invalid input')
 
 
-    def search_year(self):
+
+
+    def search_year(self, join=False):
         year = input('Select year: ')
-        join_category = input('Do you want to join category? (y/n): ')
-        if join_category == 'y':
-            result_cat = self.search_category()
-            result = self.db.search_by_category_year(year, result_cat)
-            self.display(result)
-        result, query = self.db.serach_by_year(year)
-        self.display(result, query=query, pattern=year)
+        if join:
+            return year
+        else:
+            join_category = input('Do you want to join category? (y/n): ')
+            if join_category == 'y':
+                result_cat = self.search_category(join=True)
+                print(result_cat)
+                result = self.db.search_by_category_year(year, result_cat)
+                self.display(*result)
+            elif join_category == 'n':
+                result, query = self.db.serach_by_year(year)
+                self.display(result, query=query, pattern=year)
+            else:
+                print('Invalid input')
 
     def most_common_queries(self):
         result = self.tracker.show_most_common()
