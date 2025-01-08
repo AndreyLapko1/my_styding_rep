@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 
 
+
 class QueryDatabase:
     def __init__(self):
         load_dotenv()
@@ -19,7 +20,6 @@ class QueryDatabase:
         try:
             self.cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
             self.connection.commit()
-            self.connection.close()
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
@@ -37,6 +37,9 @@ class QueryDatabase:
                         LIMIT 3'''
         self.cursor.execute(query)
         return self.cursor.fetchall()
+
+    def close(self):
+        self.connection.close()
 
 
 
@@ -62,16 +65,20 @@ class Database:
         return self.cursor.fetchall()
 
     def search_by_actor(self, actor_name):
-        base_query = '''
-                        select flm.title from film_actor fct
-                                            inner join film flm
-                                            on flm.film_id = fct.film_id
-                                            inner join actor act
-                                            on act.actor_id = fct.actor_id
-                                            where act.first_name = %s
-            '''
-        self.cursor.execute(base_query, (actor_name,))
-        return self.cursor.fetchall(), base_query
+        try:
+            base_query = '''
+                            select flm.title from film_actor fct
+                                                inner join film flm
+                                                on flm.film_id = fct.film_id
+                                                inner join actor act
+                                                on act.actor_id = fct.actor_id
+                                                where act.first_name = %s
+                '''
+            self.cursor.execute(base_query, (actor_name,))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
+
 
     def search_by_category_year(self, year, category):
         base_query = '''
@@ -87,28 +94,36 @@ class Database:
         return self.cursor.fetchall(), base_query
 
     def search_by_category(self, genre_name):
-        base_query = '''  
-                                        select f.title FROM sakila.film_category fc
-                                                inner join category c
-                                                on c.category_id = fc.category_id
-                                                inner join film f
-                                                on f.film_id = fc.film_id
-                                                where c.name = %s
-                                            '''
-        self.cursor.execute(base_query, (genre_name,))
-        return self.cursor.fetchall(), base_query
+        try:
+            base_query = '''  
+                                            select f.title FROM sakila.film_category fc
+                                                    inner join category c
+                                                    on c.category_id = fc.category_id
+                                                    inner join film f
+                                                    on f.film_id = fc.film_id
+                                                    where c.name = %s
+                                                '''
+            self.cursor.execute(base_query, (genre_name,))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
 
     def serach_by_year(self, year):
-        base_query = '''
-                                                        SELECT title FROM sakila.film
-                                                        where release_year = %s
-                                        '''
-        self.cursor.execute(base_query, (year,))
-        return self.cursor.fetchall(), base_query
+        try:
+            base_query = '''
+                                                            SELECT title FROM sakila.film
+                                                            where release_year = %s
+                                            '''
+            self.cursor.execute(base_query, (year,))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
+
 
 
     def close(self):
         self.connection.close()
+
 
 
 
@@ -143,6 +158,9 @@ class App:
 
     def search_actor(self):
         actor = input('Select actor: ')
+        if actor.isdigit():
+            print('Invalid input')
+            return
         result, query = self.db.search_by_actor(actor)
         self.tracker.tracker('Actor', actor)
         self.display(result, query=query, pattern=actor)
@@ -152,7 +170,10 @@ class App:
         print('Genres: \n')
         for index, category in enumerate(categories):
             print(f'{index + 1}. {category[1]}', end=' \t')
-        select_category = int(input('\nSelect genre: '))
+        select_category = int(input('\nSelect category: '))
+        if select_category > len(categories) + 1 or select_category < 1:
+            print('Invalid input')
+            return
         if join:
             return categories[select_category - 1][1]
         else:
@@ -160,14 +181,14 @@ class App:
             if join_year == 'y':
                 year = self.search_year(join=True)
                 result = self.db.search_by_category_year(year, categories[select_category - 1][1])
+                self.tracker.tracker('Category and Year', f'{categories[select_category - 1][1]}, {year}')
                 self.display(*result)
             elif join_year == 'n':
-                result, query = self.db.search_by_category(categories[select_category - 1][1])
-                self.display(result, query=query, pattern=categories[select_category - 1][1])
+                    result, query = self.db.search_by_category(categories[select_category - 1][1])
+                    self.tracker.tracker('Category', f'{categories[select_category - 1][1]}')
+                    self.display(result, query=query, pattern=categories[select_category - 1][1])
             else:
                 print('Invalid input')
-
-
 
 
     def search_year(self, join=False):
@@ -177,12 +198,13 @@ class App:
         else:
             join_category = input('Do you want to join category? (y/n): ')
             if join_category == 'y':
-                result_cat = self.search_category(join=True)
-                print(result_cat)
-                result = self.db.search_by_category_year(year, result_cat)
+                category = self.search_category(join=True)
+                result = self.db.search_by_category_year(year, category)
+                self.tracker.tracker('Category and Year', f'{category}, {year}')
                 self.display(*result)
             elif join_category == 'n':
                 result, query = self.db.serach_by_year(year)
+                self.tracker.tracker('Year', f'{year}')
                 self.display(result, query=query, pattern=year)
             else:
                 print('Invalid input')
@@ -227,6 +249,7 @@ class App:
                 self.show_history()
             elif choise == 6:
                 self.db.close()
+                self.tracker.close()
                 break
             else:
                 print('Invalid input')
