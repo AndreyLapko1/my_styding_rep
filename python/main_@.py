@@ -31,7 +31,7 @@ class QueryDatabase:
 
     def show_most_common(self):
         query = '''
-                        SELECT search_by, title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
+                        SELECT title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
                         GROUP BY title
                         ORDER BY counter DESC
                         LIMIT 3'''
@@ -71,6 +71,19 @@ class Database:
                                             where act.first_name = %s
             '''
         self.cursor.execute(base_query, (actor_name,))
+        return self.cursor.fetchall(), base_query
+
+    def search_by_category_year(self, year, category):
+        base_query = '''
+                         SELECT f.title, cat.name FROM sakila.film_category fcat
+                         inner join category cat
+                         on fcat.category_id = cat.category_id
+                         inner join film f
+                         on f.film_id = fcat.film_id
+                         where f.release_year = %s and cat.name = %s
+
+                                            '''
+        self.cursor.execute(base_query, (year, category))
         return self.cursor.fetchall(), base_query
 
     def search_by_category(self, genre_name):
@@ -126,6 +139,8 @@ class App:
                                 break
                             else:
                                 print('Invalid input')
+                    else:
+                        print('That\'s all')
 
 
     def search_actor(self):
@@ -134,32 +149,39 @@ class App:
         self.tracker.tracker('Actor', actor)
         self.display(result, query=query, pattern=actor)
 
-    def search_category(self):
+    def search_category(self, join=False):
         categories = self.db.show_categories()
         print('Genres: \n')
         for index, category in enumerate(categories):
             print(f'{index + 1}. {category[1]}', end=' \t')
         select_category = int(input('\nSelect genre: '))
+        if join:
+            return categories[select_category - 1][1]
         result, query = self.db.search_by_category(categories[select_category - 1][1])
         self.display(result, query=query, pattern=categories[select_category - 1][1])
 
 
     def search_year(self):
         year = input('Select year: ')
+        join_category = input('Do you want to join category? (y/n): ')
+        if join_category == 'y':
+            result_cat = self.search_category()
+            result = self.db.search_by_category_year(year, result_cat)
+            self.display(result)
         result, query = self.db.serach_by_year(year)
         self.display(result, query=query, pattern=year)
 
     def most_common_queries(self):
         result = self.tracker.show_most_common()
         if result:
-            for row in result:
-                print(row)
+            for index, row in enumerate(result):
+                print(f'{index + 1}. Search by {row[0].capitalize()}: {row[1]} times')
 
     def show_history(self):
         result = self.tracker.show_history()
         if result:
-            for row in result:
-                print(row)
+            for index, row in enumerate(result):
+                print(f'\t{index + 1}. Search by {row[1]}: {row[2].capitalize()}')
     def close(self):
         self.db.connection.close()
 
@@ -168,12 +190,12 @@ class App:
         print('Welcome!')
         while True:
             print('''
-                                1. search actor       - Search for movies by actor
-                                2. search year        - Search for movies by year
-                                3. search category    - Search for movies by category
-                                4. popular queries    - Show the most popular search queries
-                                5. show history       - Show search history
-                                6. quit               - Exit the application
+\t1. search actor       - Search for movies by actor
+\t2. search year        - Search for movies by year
+\t3. search category    - Search for movies by category
+\t4. popular queries    - Show the most popular search queries
+\t5. show history       - Show search history
+\t6. quit               - Exit the application
 
                             ''')
             choise = int(input('Select command: '))
