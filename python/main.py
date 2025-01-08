@@ -24,6 +24,16 @@ def show_history(i=1):
 
 load_dotenv()
 
+class Database:
+    def __init__(self):
+        self.connection = mysql.connector.connect(
+        host=os.getenv("host"),
+        user=os.getenv("user"),
+        password=os.getenv("password"),
+        database=os.getenv("database"),
+    )
+        self.cursor = self.connection.cursor()
+
 try:
     conn = mysql.connector.connect(
         host=os.getenv("host"),
