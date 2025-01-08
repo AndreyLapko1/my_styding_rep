@@ -44,13 +44,17 @@ class QueryDatabase:
 class Database:
     def __init__(self):
         load_dotenv()
-        self.connection = mysql.connector.connect(
-            host=os.getenv("host"),
-            user=os.getenv("user"),
-            password=os.getenv("password"),
-            database=os.getenv("database"),
-        )
-        self.cursor = self.connection.cursor()
+        try:
+            self.connection = mysql.connector.connect(
+                host=os.getenv("host"),
+                user=os.getenv("user"),
+                password=os.getenv("password"),
+                database=os.getenv("database"),
+            )
+            self.cursor = self.connection.cursor()
+            print("Connection established")
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
 
     def show_categories(self):
         query = 'select * from category'
@@ -67,7 +71,7 @@ class Database:
                                             where act.first_name = %s
             '''
         self.cursor.execute(base_query, (actor_name,))
-        return self.cursor.fetchall()
+        return self.cursor.fetchall(), base_query
 
     def search_by_category(self, genre_name):
         base_query = '''  
@@ -79,7 +83,7 @@ class Database:
                                                 where c.name = %s
                                             '''
         self.cursor.execute(base_query, (genre_name,))
-        return self.cursor.fetchall()
+        return self.cursor.fetchall(), base_query
 
     def serach_by_year(self, year):
         base_query = '''
@@ -87,7 +91,7 @@ class Database:
                                                         where release_year = %s
                                         '''
         self.cursor.execute(base_query, (year,))
-        return self.cursor.fetchall()
+        return self.cursor.fetchall(), base_query
 
 
     def close(self):
@@ -101,33 +105,49 @@ class App:
         self.db = Database()
         self.tracker = QueryDatabase()
 
-    def display(self, results):
+    def display(self, results, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
+        offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
         if not results:
             print('No results')
         else:
-            for result in results:
-                print(result)
+            for row in results:
+                if i < 10:
+                    print(f'\t{count}. {row[0].capitalize()}')
+                    i += 1
+                    count += 1
+                    if i == 10:
+                        while True:
+                            more = input('Show more? (y/n): ')
+                            if more == 'y':
+                                self.db.cursor.execute(offset_query, (pattern,))
+                                self.display(self.db.cursor.fetchall(), pattern=pattern, query=query, limit=limit, count=count+10, offset=offset + 10)
+                                break
+                            elif more == 'n':
+                                break
+                            else:
+                                print('Invalid input')
+
 
     def search_actor(self):
         actor = input('Select actor: ')
-        result = self.db.search_by_actor(actor)
+        result, query = self.db.search_by_actor(actor)
         self.tracker.tracker('Actor', actor)
-        self.display(result)
+        self.display(result, query=query, pattern=actor)
 
     def search_category(self):
         categories = self.db.show_categories()
         print('Genres: \n')
         for index, category in enumerate(categories):
-            print(f'{index}. {category[1]}', end=' \t')
-        select_category = int(input('Select genre: ')) - 1
-        result = self.db.search_by_category(select_category)
-        self.display(result)
+            print(f'{index + 1}. {category[1]}', end=' \t')
+        select_category = int(input('\nSelect genre: '))
+        result, query = self.db.search_by_category(categories[select_category - 1][1])
+        self.display(result, query=query, pattern=categories[select_category - 1][1])
 
 
     def search_year(self):
         year = input('Select year: ')
-        result = self.db.serach_by_year(year)
-        self.display(result)
+        result, query = self.db.serach_by_year(year)
+        self.display(result, query=query, pattern=year)
 
     def most_common_queries(self):
         result = self.tracker.show_most_common()
@@ -135,54 +155,51 @@ class App:
             for row in result:
                 print(row)
 
-
     def show_history(self):
         result = self.tracker.show_history()
         if result:
             for row in result:
                 print(row)
-
     def close(self):
         self.db.connection.close()
 
 
-
     def main(self):
         print('Welcome!')
-        choise = input('Input \'help\' to see available commands').strip().lower()
         while True:
-            if choise == 'help':
-                print('Available commands: \n')
-                print('''
-                    search keyword     - Search for movies by a keyword
-                    search year        - Search for movies by genre and year
-                    search actor       - Search for movies by actor
-                    popular queries    - Show the most popular search queries
-                    show history       - Show search history
-                    quit               - Exit the application
-                
-                ''')
-            elif choise == "search year":
-                self.search_year()
-            elif choise == "search actor":
+            print('''
+                                1. search actor       - Search for movies by actor
+                                2. search year        - Search for movies by year
+                                3. search category    - Search for movies by category
+                                4. popular queries    - Show the most popular search queries
+                                5. show history       - Show search history
+                                6. quit               - Exit the application
+
+                            ''')
+            choise = int(input('Select command: '))
+            if choise == 1:
                 self.search_actor()
-            elif choise == "search category":
+            elif choise == 2:
+                self.search_year()
+            elif choise == 3:
                 self.search_category()
-            elif choise == "popular queries":
+            elif choise == 4:
                 self.most_common_queries()
-            elif choise == "show history":
+            elif choise == 5:
                 self.show_history()
-            elif choise == "quit":
-                self.show_history()
+            elif choise == 6:
+                self.db.close()
+                break
+            else:
+                print('Invalid input')
 
 
 if __name__ == '__main__':
     app = App()
-    def run():
-        try:
-            app.main()
-        finally:
-            app.close()
+    try:
+        app.main()
+    finally:
+        app.close()
 
 
 
