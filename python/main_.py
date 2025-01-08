@@ -108,7 +108,7 @@ class Database:
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
-    def serach_by_year(self, year):
+    def search_by_year(self, year):
         try:
             base_query = '''
                                                             SELECT title FROM sakila.film
@@ -203,7 +203,7 @@ class App:
                 self.tracker.tracker('Category and Year', f'{category}, {year}')
                 self.display(*result)
             elif join_category == 'n':
-                result, query = self.db.serach_by_year(year)
+                result, query = self.db.search_by_year(year)
                 self.tracker.tracker('Year', f'{year}')
                 self.display(result, query=query, pattern=year)
             else:
