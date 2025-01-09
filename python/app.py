@@ -191,12 +191,12 @@ class App:
                 print('Invalid input')
 
 
-    def search_year(self, join=False):
-        year = input('Select year: ')
+    def search_year(self, year, join=False, join_category=None):
+        # year = input('Select year: ')
         if join:
             return year
         else:
-            join_category = input('Do you want to join category? (y/n): ')
+            # join_category = input('Do you want to join category? (y/n): ')
             if join_category == 'y':
                 category = self.search_category(join=True)
                 result = self.db.search_by_category_year(year, category)
