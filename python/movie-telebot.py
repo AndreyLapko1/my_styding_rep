@@ -1,5 +1,6 @@
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 import app
 
 
@@ -11,7 +12,7 @@ def start_message(message):
 
     keyboard = InlineKeyboardMarkup(row_width=2)
 
-    # Добавляем кнопки
+
     button1 = InlineKeyboardButton('Поиск по году', callback_data='btn1')
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
     button3 = InlineKeyboardButton('Поиск по ключевому слову', callback_data='btn3')
