@@ -4,8 +4,7 @@ from app import App
 from app import Database, QueryDatabase
 
 
-
-token = '7855375894:AAE8jf5q-RgYlhIZRGDqwapMZiNinjpqAP0'
+token = '7940666329:AAHdyPOsxVksG6mPhGWcFrO0V9vAMX7-1Eg'
 bot = telebot.TeleBot(token)
 app = App(bot)
 
@@ -39,21 +38,28 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, f'Выберите категорию')
         app.search_year(call.message.chat.id, year, join_category='y')
 
-    elif call.data == f'No':
+    elif call.data == 'No':
         year = user_states.get(call.message.chat.id)
         bot.send_message(call.message.chat.id, f'{year}')
         bot.answer_callback_query(call.id)
-        bot.send_message(call.message.chat.id, 'Фильмы по выбранному вами году: ')
+        bot.send_message(call.message.chat.id, f'Фильмы по {year} году: ')
         app.search_year(call.message.chat.id, year, join_category='n')
 
     elif call.data.startswith('category_'):
         category_index = int(call.data.split('_')[1])
         categories = app.db.show_categories()
         if category_index < len(categories):
+            year = user_states.get(call.message.chat.id)
             selected_category = categories[category_index][1]
             bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
+            app.search_category(call.message.chat.id, selected_category ,year)
+
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
+
+    elif call.data.startswith('show_'):
+        pattern = int(call.data.split('_')[1])
+        app.display(call.message.chat.id, pattern=pattern, more=True)
 
 
 

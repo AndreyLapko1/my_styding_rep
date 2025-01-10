@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+import re
 
 
 
@@ -136,29 +137,57 @@ class App:
         self.bot = bot
         self.db = Database()
         self.tracker = QueryDatabase()
+        self.query = None
 
-    def display(self, chat_id, results, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
-        offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
-        if not results:
-            pass
-            # self.bot.send_message(chat_id, 'No results')
+
+
+    def display(self, chat_id, results=None, pattern=None, query=None, offset=10, limit=10, more=False):
+        pattern_regex = r"^\s*SELECT.*%s\s*$"
+        if query:
+            if re.findall(pattern_regex, query, flags=re.DOTALL):
+                match = re.findall(pattern_regex, query, re.DOTALL)
+                cleaned_query = match[0]
+                self.query = cleaned_query
+                print(cleaned_query, 'это из очистки')
+            else:
+                self.query = query
+                print(self.query, 'это из else')
+
+        if more:
+            offset_query = f'{self.query} LIMIT {limit} OFFSET {offset}'
+            print(offset_query)
+            self.db.cursor.execute(offset_query, (pattern,))
+            new_results = self.db.cursor.fetchall()
+
+            if new_results:
+
+                self.display(chat_id, results=new_results, pattern=pattern, query=self.query, offset=offset + 10,limit=limit)
+                print(new_results)
+                return
+            else:
+                self.bot.send_message(chat_id, "No more results.")
+                return
+
+
+
+        if isinstance(results, list):
+
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            for row in results[:10]:
+                keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
+
+
+            self.bot.send_message(chat_id, "Selected films:", reply_markup=keyboard)
+
+            if len(results) >= 10:
+                show_more_keyboard = InlineKeyboardMarkup(row_width=2)
+                show_more_keyboard.add(InlineKeyboardButton(text="Yes", callback_data=f"show_{pattern}"))
+                show_more_keyboard.add(InlineKeyboardButton(text="No", callback_data="dontshow"))
+                self.bot.send_message(chat_id, "Show more? :", reply_markup=show_more_keyboard)
+                return
         else:
-            for row in results:
-                if i < 10:
-                    self.bot.send_message(chat_id, f'{count}. {row[0].capitalize()}')
-                    i += 1
-                    count += 1
-                    if i == 10:
-                        while True:
-                            more = input('Show more? (y/n): ')
-                            if more == 'y':
-                                self.db.cursor.execute(offset_query, (pattern,))
-                                self.display(self.db.cursor.fetchall(), pattern=pattern, query=query, limit=limit, count=count+10, offset=offset + 10)
-                                break
-                            elif more == 'n':
-                                break
-                            else:
-                                print('Invalid input')
+            print("Results is not a list:", results)
+            self.bot.send_message(chat_id, "Error: Results are not in the correct format.")
 
 
     def search_actor(self):
@@ -168,23 +197,26 @@ class App:
             return
         result, query = self.db.search_by_actor(actor)
         self.tracker.tracker('Actor', actor)
-        self.display(result, query=query, pattern=actor)
-
-    def search_category(self, chat_id, join=False):
-        categories = self.db.show_categories()
-        keyboard = InlineKeyboardMarkup(row_width=2)
-        for index, category in enumerate(categories):
-            keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'category_{index}'))
-
-        self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
+        self.display(results=result, query=query, pattern=actor)
 
 
+    def search_category(self, chat_id, category=None, year=None):
+        if year and category:
+            kboard = InlineKeyboardMarkup(row_width=2)
+            result, query = self.db.search_by_category_year(year,category)
+            if result:
+                for row in result:
+                    kboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
+                self.bot.send_message(chat_id, "Select a category:", reply_markup=kboard)
+            else:
+                self.bot.send_message(chat_id, "No results found")
+        else:
+            categories = self.db.show_categories()
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            for index, category in enumerate(categories):
+                keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'category_{index}'))
+            self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
 
-        # if select_category > len(categories) + 1 or select_category < 1:
-        #     print('Invalid input')
-        #     return
-        # if join:
-        #     return categories[select_category - 1][1]
         # else:
         #     join_year = input('Do you want to join year? (y/n): ')
         #     if join_year == 'y':
@@ -201,20 +233,18 @@ class App:
 
 
     def search_year(self, chat_id, year, join=False, join_category=None):
-        # year = input('Select year: ')
         if join:
             return year
         else:
-            # join_category = input('Do you want to join category? (y/n): ')
             if join_category == 'y':
-                category = self.search_category(chat_id,join=True)
-                result = self.db.search_by_category_year(year, category)
+                category = self.search_category(chat_id)
+                result, query = self.db.search_by_category_year(year, category)
                 self.tracker.tracker('Category and Year', f'{category}, {year}')
-                self.display(chat_id,*result)
+                # self.display(chat_id,*result)
             elif join_category == 'n':
                 result, query = self.db.search_by_year(year)
                 self.tracker.tracker('Year', f'{year}')
-                self.display(chat_id, result, query=query, pattern=year)
+                self.display(chat_id, results=result, query=query, pattern=year)
             else:
                 print('Invalid input')
 
@@ -264,12 +294,12 @@ class App:
                 print('Invalid input')
 
 
-if __name__ == '__main__':
-    app = App()
-    try:
-        app.main()
-    finally:
-        app.close()
+# if __name__ == '__main__':
+#     app = App()
+#     try:
+#         app.main()
+#     finally:
+#         app.close()
 
 
 
