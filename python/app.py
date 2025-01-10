@@ -1,6 +1,9 @@
 import mysql.connector
 import os
 from dotenv import load_dotenv
+import telebot
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+
 
 
 
@@ -129,18 +132,20 @@ class Database:
 
 
 class App:
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.db = Database()
         self.tracker = QueryDatabase()
 
-    def display(self, results, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
+    def display(self, chat_id, results, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
         offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
         if not results:
-            print('No results')
+            pass
+            # self.bot.send_message(chat_id, 'No results')
         else:
             for row in results:
                 if i < 10:
-                    print(f'\t{count}. {row[0].capitalize()}')
+                    self.bot.send_message(chat_id, f'{count}. {row[0].capitalize()}')
                     i += 1
                     count += 1
                     if i == 10:
@@ -165,47 +170,51 @@ class App:
         self.tracker.tracker('Actor', actor)
         self.display(result, query=query, pattern=actor)
 
-    def search_category(self, join=False):
+    def search_category(self, chat_id, join=False):
         categories = self.db.show_categories()
-        print('Genres: \n')
+        keyboard = InlineKeyboardMarkup(row_width=2)
         for index, category in enumerate(categories):
-            print(f'{index + 1}. {category[1]}', end=' \t')
-        select_category = int(input('\nSelect category: '))
-        if select_category > len(categories) + 1 or select_category < 1:
-            print('Invalid input')
-            return
-        if join:
-            return categories[select_category - 1][1]
-        else:
-            join_year = input('Do you want to join year? (y/n): ')
-            if join_year == 'y':
-                year = self.search_year(join=True)
-                result = self.db.search_by_category_year(year, categories[select_category - 1][1])
-                self.tracker.tracker('Category and Year', f'{categories[select_category - 1][1]}, {year}')
-                self.display(*result)
-            elif join_year == 'n':
-                    result, query = self.db.search_by_category(categories[select_category - 1][1])
-                    self.tracker.tracker('Category', f'{categories[select_category - 1][1]}')
-                    self.display(result, query=query, pattern=categories[select_category - 1][1])
-            else:
-                print('Invalid input')
+            keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'category_{index}'))
+
+        self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
 
 
-    def search_year(self, year, join=False, join_category=None):
+
+        # if select_category > len(categories) + 1 or select_category < 1:
+        #     print('Invalid input')
+        #     return
+        # if join:
+        #     return categories[select_category - 1][1]
+        # else:
+        #     join_year = input('Do you want to join year? (y/n): ')
+        #     if join_year == 'y':
+        #         year = self.search_year(join=True)
+        #         result = self.db.search_by_category_year(year, categories[select_category - 1][1])
+        #         self.tracker.tracker('Category and Year', f'{categories[select_category - 1][1]}, {year}')
+        #         self.display(*result)
+        #     elif join_year == 'n':
+        #             result, query = self.db.search_by_category(categories[select_category - 1][1])
+        #             self.tracker.tracker('Category', f'{categories[select_category - 1][1]}')
+        #             self.display(result, query=query, pattern=categories[select_category - 1][1])
+        #     else:
+        #         print('Invalid input')
+
+
+    def search_year(self, chat_id, year, join=False, join_category=None):
         # year = input('Select year: ')
         if join:
             return year
         else:
             # join_category = input('Do you want to join category? (y/n): ')
             if join_category == 'y':
-                category = self.search_category(join=True)
+                category = self.search_category(chat_id,join=True)
                 result = self.db.search_by_category_year(year, category)
                 self.tracker.tracker('Category and Year', f'{category}, {year}')
-                self.display(*result)
+                self.display(chat_id,*result)
             elif join_category == 'n':
                 result, query = self.db.search_by_year(year)
                 self.tracker.tracker('Year', f'{year}')
-                self.display(result, query=query, pattern=year)
+                self.display(chat_id, result, query=query, pattern=year)
             else:
                 print('Invalid input')
 

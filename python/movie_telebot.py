@@ -1,10 +1,13 @@
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from app import App
+from app import Database, QueryDatabase
 
-import app
 
 
-bot = telebot.TeleBot('7855375894:AAE8jf5q-RgYlhIZRGDqwapMZiNinjpqAP0')
+token = '7855375894:AAE8jf5q-RgYlhIZRGDqwapMZiNinjpqAP0'
+bot = telebot.TeleBot(token)
+app = App(bot)
 
 
 @bot.message_handler(commands=['start'])
@@ -30,18 +33,29 @@ def callback_inline(call):
     elif call.data == 'btn3':
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
 
-    elif call.data.startswith('add_year:'):
+    elif call.data.startswith('add_category:'):
         bot.answer_callback_query(call.id)
         year = call.data.split(':')[1]
-        bot.send_message(call.message.chat.id, f'Фильтр по году {year} добавлен!')
+        bot.send_message(call.message.chat.id, f'Выберите категорию')
+        app.search_year(call.message.chat.id, year, join_category='y')
 
     elif call.data == f'No':
         year = user_states.get(call.message.chat.id)
         bot.send_message(call.message.chat.id, f'{year}')
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, 'Фильмы по выбранному вами году: ')
-        app = main_.App()
-        app.search_year(int(year), join_category='n')
+        app.search_year(call.message.chat.id, year, join_category='n')
+
+    elif call.data.startswith('category_'):
+        category_index = int(call.data.split('_')[1])
+        categories = app.db.show_categories()
+        if category_index < len(categories):
+            selected_category = categories[category_index][1]
+            bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
+        else:
+            bot.send_message(call.message.chat.id, "Invalid category selected.")
+
+
 
 
 user_states = {}
@@ -51,7 +65,7 @@ def handle_year(message):
         keyboard = InlineKeyboardMarkup(row_width=2)
         year = int(message.text)
         user_states[message.chat.id] = year
-        button1 = InlineKeyboardButton('Да', callback_data=f'add_year:{year}')
+        button1 = InlineKeyboardButton('Да', callback_data=f'add_category:{year}')
         button2 = InlineKeyboardButton('Нет', callback_data=f'No')
         keyboard.add(button1, button2)
         bot.send_message(message.chat.id, f'Год {year} принят. Хотите добавить фильтр жанра?', reply_markup=keyboard)
