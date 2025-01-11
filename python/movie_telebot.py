@@ -18,7 +18,9 @@ def start_message(message):
     button1 = InlineKeyboardButton('Поиск по году', callback_data='btn1')
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
     button3 = InlineKeyboardButton('Поиск по ключевому слову', callback_data='btn3')
-    keyboard.add(button1, button2, button3)
+    button4 = InlineKeyboardButton('Просмотр 5 самых популярных запросов', callback_data='btn4')
+    button5 = InlineKeyboardButton('Просмотр истории', callback_data='btn5')
+    keyboard.add(button1, button2, button3, button4, button5)
     bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
 
 
@@ -28,9 +30,12 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
     elif call.data == 'btn2':
-        bot.send_message(call.message.chat.id, "Введите жанр")
+        app.search_category(call.message.chat.id)
+
     elif call.data == 'btn3':
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
+        bot.register_next_step_handler(call.message, handle_keyword)
+
 
     elif call.data.startswith('add_category:'):
         bot.answer_callback_query(call.id)
@@ -48,18 +53,30 @@ def callback_inline(call):
     elif call.data.startswith('category_'):
         category_index = int(call.data.split('_')[1])
         categories = app.db.show_categories()
+        year = user_states.get(call.message.chat.id)
         if category_index < len(categories):
-            year = user_states.get(call.message.chat.id)
-            selected_category = categories[category_index][1]
-            bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
-            app.search_category(call.message.chat.id, selected_category ,year)
+            if year:
+                selected_category = categories[category_index][1]
+                bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
+                app.search_category(call.message.chat.id, selected_category ,year)
+            else:
+                selected_category = categories[category_index][1]
+                app.search_category(call.message.chat.id, selected_category)
 
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
 
-    elif call.data.startswith('show_'):
-        pattern = int(call.data.split('_')[1])
-        app.display(call.message.chat.id, pattern=pattern, more=True)
+    elif call.data.startswith('s/'):
+        pattern = call.data.split('/')[1]
+        func = call.data.split('/')[2]
+        offset = int(call.data.split('/')[3]) + 10
+        print(offset,'in another file')
+        app.display(call.message.chat.id, pattern=pattern, more=True, func=func, offset=offset)
+
+    elif call.data == 'dontshow':
+        start_message(call.message)
+
+
 
 
 
@@ -80,6 +97,12 @@ def handle_year(message):
         bot.send_message(message.chat.id, "Введите корректный год (число).")
         bot.register_next_step_handler(message, handle_year)
 
+
+def handle_keyword(message):
+    keyword = message.text
+    user_states[message.chat.id] = keyword
+    bot.send_message(message.chat.id, f'Слово \'{keyword}\' принято!')
+    app.search_by_keyword(message.chat.id, keyword)
 
 
 

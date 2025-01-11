@@ -1,8 +1,9 @@
 import mysql.connector
 import os
 from dotenv import load_dotenv
-import telebot
+
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot import types
 import re
 
 
@@ -68,17 +69,21 @@ class Database:
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
-    def search_by_actor(self, actor_name):
+    def search_by_keyword(self, keyword, limit=10, offset=0):
         try:
-            base_query = '''
-                            select flm.title from film_actor fct
-                                                inner join film flm
-                                                on flm.film_id = fct.film_id
-                                                inner join actor act
-                                                on act.actor_id = fct.actor_id
-                                                where act.first_name = %s
+            base_query = f'''
+                            SELECT distinct f.title
+                            FROM sakila.film f
+                            join film_actor a
+                            on f.film_id = a.film_id
+                            join actor act
+                            on a.actor_id = act.actor_id
+                            where lower(act.first_name) LIKE %s
+                            or lower(act.last_name) like %s
+                            or lower(f.title) like %s
+                            LIMIT {limit} OFFSET {offset}
                 '''
-            self.cursor.execute(base_query, (actor_name,))
+            self.cursor.execute(base_query, (keyword, keyword, keyword))
             return self.cursor.fetchall(), base_query
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
@@ -97,26 +102,28 @@ class Database:
         self.cursor.execute(base_query, (year, category))
         return self.cursor.fetchall(), base_query
 
-    def search_by_category(self, genre_name):
+    def search_by_category(self, genre_name, limit=10, offset=0):
         try:
-            base_query = '''  
+            base_query = f'''  
                                             select f.title FROM sakila.film_category fc
                                                     inner join category c
                                                     on c.category_id = fc.category_id
                                                     inner join film f
                                                     on f.film_id = fc.film_id
                                                     where c.name = %s
+                                                    LIMIT {limit} OFFSET {offset}
                                                 '''
             self.cursor.execute(base_query, (genre_name,))
             return self.cursor.fetchall(), base_query
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
-    def search_by_year(self, year):
+    def search_by_year(self, year, limit=10, offset=0):
         try:
-            base_query = '''
+            base_query = f'''
                                                             SELECT title FROM sakila.film
                                                             where release_year = %s
+                                                            LIMIT {limit} OFFSET {offset}
                                             '''
             self.cursor.execute(base_query, (year,))
             return self.cursor.fetchall(), base_query
@@ -141,28 +148,29 @@ class App:
 
 
 
-    def display(self, chat_id, results=None, pattern=None, query=None, offset=10, limit=10, more=False):
+    def display(self, chat_id, results=None, pattern=None, query=None, offset=0, more=False, func=None):
         pattern_regex = r"^\s*SELECT.*%s\s*$"
+        print(pattern)
         if query:
             if re.findall(pattern_regex, query, flags=re.DOTALL):
                 match = re.findall(pattern_regex, query, re.DOTALL)
                 cleaned_query = match[0]
                 self.query = cleaned_query
-                print(cleaned_query, 'это из очистки')
+                # print(cleaned_query, 'это из очистки')
             else:
                 self.query = query
-                print(self.query, 'это из else')
+                # print(self.query, 'это из else')
 
         if more:
-            offset_query = f'{self.query} LIMIT {limit} OFFSET {offset}'
-            print(offset_query)
-            self.db.cursor.execute(offset_query, (pattern,))
-            new_results = self.db.cursor.fetchall()
+            method = getattr(self.db, func)
+            new_results, query = method(pattern, offset=offset)
+            # offset_query = f'{self.query} LIMIT {limit} OFFSET {offset}'
+            # print(offset_query)
+            # self.db.cursor.execute(offset_query, (pattern,))
+            # new_results = self.db.cursor.fetchall()
 
             if new_results:
-
-                self.display(chat_id, results=new_results, pattern=pattern, query=self.query, offset=offset + 10,limit=limit)
-                print(new_results)
+                self.display(chat_id, results=new_results, pattern=pattern, func=method.__name__, offset=offset)
                 return
             else:
                 self.bot.send_message(chat_id, "No more results.")
@@ -171,17 +179,29 @@ class App:
 
 
         if isinstance(results, list):
-
+            print(results[:10])
             keyboard = InlineKeyboardMarkup(row_width=2)
             for row in results[:10]:
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
+
+            if len(results) < 10:
+                pass
+                # self.bot.send_message(chat_id, "Я тебя люблю, малышик мой")
+                # keyboard = types.InlineKeyboardMarkup()
+                # hidden_button = types.InlineKeyboardButton(text="Hidden", callback_data="hidden")
+                # keyboard.add(hidden_button)
+                # self.bot.send_message(chat_id, "Message with hidden button.", reply_markup=keyboard)
+            if len(results) == 0:
+                self.bot.send_message(chat_id, "Нет таких фильмов :(")
+                return
 
 
             self.bot.send_message(chat_id, "Selected films:", reply_markup=keyboard)
 
             if len(results) >= 10:
                 show_more_keyboard = InlineKeyboardMarkup(row_width=2)
-                show_more_keyboard.add(InlineKeyboardButton(text="Yes", callback_data=f"show_{pattern}"))
+                print(offset)
+                show_more_keyboard.add(InlineKeyboardButton(text="Yes", callback_data=f"s/{pattern}/{func}/{offset}"))
                 show_more_keyboard.add(InlineKeyboardButton(text="No", callback_data="dontshow"))
                 self.bot.send_message(chat_id, "Show more? :", reply_markup=show_more_keyboard)
                 return
@@ -190,24 +210,28 @@ class App:
             self.bot.send_message(chat_id, "Error: Results are not in the correct format.")
 
 
-    def search_actor(self):
-        actor = input('Select actor: ')
-        if actor.isdigit():
+    def search_by_keyword(self, chat_id, keyword):
+        if keyword.isdigit():
             print('Invalid input')
             return
-        result, query = self.db.search_by_actor(actor)
-        self.tracker.tracker('Actor', actor)
-        self.display(results=result, query=query, pattern=actor)
+        keyword = f'%{keyword}%'
+        func = self.db.search_by_keyword.__name__
+        result, query = self.db.search_by_keyword(keyword)
+        self.tracker.tracker('Keyword', keyword)
+        self.display(chat_id, results=result, query=query, pattern=keyword, func=func)
 
 
     def search_category(self, chat_id, category=None, year=None):
-        if year and category:
+        if (year and category) or category:
             kboard = InlineKeyboardMarkup(row_width=2)
-            result, query = self.db.search_by_category_year(year,category)
-            if result:
-                for row in result:
-                    kboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
-                self.bot.send_message(chat_id, "Select a category:", reply_markup=kboard)
+            if category:
+                result, query = self.db.search_by_category(category)
+                func = self.db.search_by_category.__name__
+                if year and category:
+                    result, query = self.db.search_by_category_year(year,category)
+                # self.bot.send_message(chat_id, "Select films:", reply_markup=kboard)
+                self.display(chat_id, results=result, func=func, pattern=category)
+                return
             else:
                 self.bot.send_message(chat_id, "No results found")
         else:
@@ -240,11 +264,11 @@ class App:
                 category = self.search_category(chat_id)
                 result, query = self.db.search_by_category_year(year, category)
                 self.tracker.tracker('Category and Year', f'{category}, {year}')
-                # self.display(chat_id,*result)
             elif join_category == 'n':
                 result, query = self.db.search_by_year(year)
+                func = self.db.search_by_year.__name__
                 self.tracker.tracker('Year', f'{year}')
-                self.display(chat_id, results=result, query=query, pattern=year)
+                self.display(chat_id, results=result, query=query, pattern=year, func=func)
             else:
                 print('Invalid input')
 
