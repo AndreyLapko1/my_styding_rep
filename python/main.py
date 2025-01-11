@@ -1,274 +1,281 @@
-
 import mysql.connector
 import os
 from dotenv import load_dotenv
 
 
 
-def most_common():
-    cursor, connect = connect_to_write()
-    cursor.execute('''
-                SELECT search_by, title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
-                GROUP BY title
-                ORDER BY counter DESC
-                LIMIT 3;
-    ''')
-    output(cursor, hist=True)
-
-
-def show_history(i=1):
-    cursor, connect = connect_to_write()
-    cursor.execute('select * from requests')
-    output(cursor, hist=True)
-
-
-load_dotenv()
-
-class Database:
+class QueryDatabase:
     def __init__(self):
+        load_dotenv()
         self.connection = mysql.connector.connect(
-        host=os.getenv("host"),
-        user=os.getenv("user"),
-        password=os.getenv("password"),
-        database=os.getenv("database"),
-    )
-        self.cursor = self.connection.cursor()
-
-try:
-    conn = mysql.connector.connect(
-        host=os.getenv("host"),
-        user=os.getenv("user"),
-        password=os.getenv("password"),
-        database=os.getenv("database"),
-    )
-    cursor = conn.cursor()
-    print('Connected to database')
-
-except mysql.connector.Error as err:
-    print(f'Something went wrong ', err)
-
-
-def connect_to_write():
-    try:
-        connect = mysql.connector.connect(
             host=os.getenv("host_write"),
             user=os.getenv("user_write"),
             password=os.getenv("password_write"),
             database=os.getenv("db_write"),
         )
-        cursor = connect.cursor()
-    except mysql.connector.Error as err:
-        print(f'Something went wrong ', err)
-    return cursor, connect
+        self.cursor = self.connection.cursor()
 
 
-def history_write(filter, pattern):
-    cursor, connect = connect_to_write()
-    try:
-        cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
-        connect.commit()
-        connect.close()
-    except mysql.connector.Error as err:
-        print(f'Something went wrong ', err)
-
-
-def show_categories():
-    cursor.execute('select * from category')
-    categories = cursor.fetchall()
-    print('Generes: ')
-    for index, category in enumerate(categories, start=1):
-        print(f'{index}. {category[1]}', end=' \t')
-    return categories
-
-
-def output(cursor, pattern=None, query=None, i=0, offset=10, limit=10, count=1, hist=False):
-    offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
-    try:
-        results = cursor.fetchall()
-        if results is not None:
-            if hist:
-                for row in results:
-                    print(f'\t{count}. Search by {row[1]}')
-                    count += 1
-
-            else:
-                for row in results:
-                    if i < 10:
-                        print(f'\t{count}. {row[0].capitalize()}')
-                        count += 1
-                        i += 1
-                if i == 10:
-                    while True:
-                        show_more = input('Show more? (y/n): ')
-                        if show_more == 'y':
-                            cursor.execute(offset_query, (pattern,))
-                            output(cursor, pattern=pattern, query=query, offset=offset + 10, count=count)
-                            break
-                        elif show_more == 'n':
-                            break
-                        else:
-                            print('Invalid input')
-
-        else:
-            print('\tNot found')
-    except Exception as e:
-        print(f"Error: {e}")
-
-
-def find_by_actor(cursor, name_find=None, send_to_out=True):
-    if name_find is None:
-        name_find = input('Enter the actor\'s name: ').upper()
-
-    base_query = '''
-                select flm.title from film_actor fct
-                                    inner join film flm
-                                    on flm.film_id = fct.film_id
-                                    inner join actor act
-                                    on act.actor_id = fct.actor_id
-                                    where act.first_name = %s
-    '''
-    cursor.execute(base_query, (name_find,))
-    history_write('Actor', name_find)
-
-    if send_to_out:
-        output(cursor, pattern=name_find, query=base_query)
-    else:
-        return cursor, base_query
-
-
-def out_query(func, pattern):
-    a = func(cursor, join=True)
-    base_query = '''
-                                                SELECT f.title, cat.name FROM sakila.film_category fcat
-                                                inner join category cat
-                                                on fcat.category_id = cat.category_id
-                                                inner join film f
-                                                on f.film_id = fcat.film_id
-                                                where f.release_year = %s and cat.name = %s
-
-                                    '''
-    if isinstance(a, int):
-        cursor.execute(base_query, (a, pattern,))
-        history_write('Year and Genre', f'{a}, {pattern}')
-    elif isinstance(a, str):
-        cursor.execute(base_query, (pattern, a,))
-        history_write('Year and Genre', f'{pattern}, {a}')
-    output(cursor)
-
-
-def find_by_genre(cursor, genre_find=None, send_to_out=True, join=False):
-    categories = show_categories()
-    base_query = '''  
-                                select f.title FROM sakila.film_category fc
-                                        inner join category c
-                                        on c.category_id = fc.category_id
-                                        inner join film f
-                                        on f.film_id = fc.film_id
-                                        where c.name = %s
-                                    '''
-    if genre_find is None:
+    def tracker(self, filter, pattern):
         try:
-            genre_find = int(input('\nEnter the genre number: '))
-            if join:
-                return categories[genre_find - 1][1]
-            if genre_find < 1 or genre_find > len(categories):
-                raise ValueError('Expected number within acceptable values')
-            while True:
-                join_year = input('Do you want to join year filter?: (y/n): ')
-                if join_year == 'y':
-                    out_query(find_by_year, categories[genre_find - 1][1])
-                    break
-                elif join_year == 'n':
-                    cursor.execute(base_query, (categories[genre_find - 1][1],))
-                    break
-                else:
-                    print('Invalid input')
-        except (TypeError, ValueError) as e:
-            raise Exception(f'Fail. {e}')
-
-    if send_to_out:
-        output(cursor, pattern=categories[genre_find - 1][1], query=base_query)
-        history_write('Genre', categories[genre_find - 1][1])
-    else:
-        return cursor, base_query
+            self.cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
+            self.connection.commit()
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
 
 
-def find_by_year(cursor, selected_year=None, send_to_out=True, join=False):
-    if selected_year is None:
+    def show_history(self):
+        query = 'select * from requests'
+        self.cursor.execute(query)
+        return  self.cursor.fetchall()
+
+    def show_most_common(self):
+        query = '''
+                        SELECT title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
+                        GROUP BY title
+                        ORDER BY counter DESC
+                        LIMIT 3'''
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    def close(self):
+        self.connection.close()
+
+
+
+
+class Database:
+    def __init__(self):
+        load_dotenv()
+        try:
+            self.connection = mysql.connector.connect(
+                host=os.getenv("host"),
+                user=os.getenv("user"),
+                password=os.getenv("password"),
+                database=os.getenv("database"),
+            )
+            self.cursor = self.connection.cursor()
+            print("Connection established")
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
+
+    def show_categories(self):
+        query = 'select * from category'
+        self.cursor.execute(query)
+        return self.cursor.fetchall()
+
+    def search_by_keyword(self, keyword):
+        try:
+            base_query = '''
+                            SELECT distinct f.title
+                            FROM sakila.film f
+                            join film_actor a
+                            on f.film_id = a.film_id
+                            join actor act
+                            on a.actor_id = act.actor_id
+                            where lower(act.first_name) LIKE %s
+                            or lower(act.last_name) like %s
+                            or lower(f.title) like %s
+                '''
+            self.cursor.execute(base_query, (keyword, keyword, keyword))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
+
+
+    def search_by_category_year(self, year, category):
         base_query = '''
-                                                SELECT title FROM sakila.film
-                                                where release_year = %s
-                                '''
-        selected_year = int(input('Enter the year of release: '))
-        if not join:
-            while True:
-                join_year = input('Do you want to join year filter?: (y/n): ')
-                if join_year == 'y':
-                    out_query(find_by_genre, selected_year)
-                    break
-                elif join_year == 'n':
-                    cursor.execute(base_query, (selected_year,))
-                    break
+                         SELECT f.title, cat.name FROM sakila.film_category fcat
+                         inner join category cat
+                         on fcat.category_id = cat.category_id
+                         inner join film f
+                         on f.film_id = fcat.film_id
+                         where f.release_year = %s and cat.name = %s
 
-                else:
-                    print('Invalid input')
+                                            '''
+        self.cursor.execute(base_query, (year, category))
+        return self.cursor.fetchall(), base_query
 
-        elif join:
-            return selected_year
+    def search_by_category(self, genre_name):
+        try:
+            base_query = '''  
+                                            select f.title FROM sakila.film_category fc
+                                                    inner join category c
+                                                    on c.category_id = fc.category_id
+                                                    inner join film f
+                                                    on f.film_id = fc.film_id
+                                                    where c.name = %s
+                                                '''
+            self.cursor.execute(base_query, (genre_name,))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
 
-        if send_to_out:
-            output(cursor, pattern=selected_year, query=base_query)
-            history_write('Year', selected_year)
+    def search_by_year(self, year):
+        try:
+            base_query = '''
+                                                            SELECT title FROM sakila.film
+                                                            where release_year = %s
+                                            '''
+            self.cursor.execute(base_query, (year,))
+            return self.cursor.fetchall(), base_query
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
 
+
+
+    def close(self):
+        self.connection.close()
+
+
+
+
+
+class App:
+    def __init__(self):
+        self.db = Database()
+        self.tracker = QueryDatabase()
+
+    def display(self, results, pattern=None, query=None, i=0, offset=10, limit=10, count=1):
+        offset_query = f'{query} LIMIT {limit} OFFSET {offset}'
+        if not results:
+            print('No results')
         else:
-            return cursor, base_query
+            for row in results:
+                if i < 10:
+                    print(f'\t{count}. {row[0].capitalize()}')
+                    i += 1
+                    count += 1
+                    if i == 10:
+                        while True:
+                            more = input('Show more? (y/n): ')
+                            if more == 'y':
+                                self.db.cursor.execute(offset_query, (pattern,))
+                                self.display(self.db.cursor.fetchall(), pattern=pattern, query=query, limit=limit, count=count+10, offset=offset + 10)
+                                break
+                            elif more == 'n':
+                                break
+                            else:
+                                print('Invalid input')
 
 
+    def search_actor(self):
+        keyword = input('Enter keyword: ').lower()
+        if keyword.isdigit():
+            print('Invalid input')
+            return
+        keyword = f'%{keyword}%'
+        result, query = self.db.search_by_keyword(keyword)
+        self.tracker.tracker('Keyword', keyword)
+        self.display(result, query=query, pattern=keyword)
+
+    def search_category(self, join=False):
+        categories = self.db.show_categories()
+        print('Genres: \n')
+        for index, category in enumerate(categories):
+            print(f'{index + 1}. {category[1]}', end=' \t')
+        select_category = int(input('\nSelect category: '))
+        if select_category > len(categories) + 1 or select_category < 1:
+            print('Invalid input')
+            return
+        if join:
+            return categories[select_category - 1][1]
+        else:
+            join_year = input('Do you want to join year? (y/n): ')
+            if join_year == 'y':
+                year = self.search_year(join=True)
+                result = self.db.search_by_category_year(year, categories[select_category - 1][1])
+                self.tracker.tracker('Category and Year', f'{categories[select_category - 1][1]}, {year}')
+                self.display(*result)
+            elif join_year == 'n':
+                    result, query = self.db.search_by_category(categories[select_category - 1][1])
+                    self.tracker.tracker('Category', f'{categories[select_category - 1][1]}')
+                    self.display(result, query=query, pattern=categories[select_category - 1][1])
+            else:
+                print('Invalid input')
 
 
-def sampling_filter():
-    sampling_options = ['Actor name', 'Genre', 'Year of release', 'Check history', 'Most common queries', "Exit"]
-    for index, samp_opt in enumerate(sampling_options, start=1):
-        print(f'{index}. {samp_opt}', end='\t')
+    def search_year(self, join=False):
+        year = input('Select year: ')
+        if join:
+            return year
+        else:
+            join_category = input('Do you want to join category? (y/n): ')
+            if join_category == 'y':
+                category = self.search_category(join=True)
+                result = self.db.search_by_category_year(year, category)
+                self.tracker.tracker('Category and Year', f'{category}, {year}')
+                self.display(*result)
+            elif join_category == 'n':
+                result, query = self.db.search_by_year(year)
+                self.tracker.tracker('Year', f'{year}')
+                self.display(result, query=query, pattern=year)
+            else:
+                print('Invalid input')
+
+    def most_common_queries(self):
+        result = self.tracker.show_most_common()
+        if result:
+            for index, row in enumerate(result):
+                print(f'{index + 1}. Search by {row[0].capitalize()}: {row[1]} times')
+
+    def show_history(self):
+        result = self.tracker.show_history()
+        if result:
+            for index, row in enumerate(result):
+                print(f'\t{index + 1}. Search by {row[1]}: {row[2].capitalize()}')
+    def close(self):
+        self.db.connection.close()
+
+
+    def main(self):
+        print('Welcome!')
+        while True:
+            print('''
+\t1. search by keyword     - Search for movies by keyword
+\t2. search by year        - Search for movies by year
+\t3. search by category    - Search for movies by category
+\t4. popular queries       - Show the most popular search queries
+\t5. show history          - Show search history
+\t6. quit                  - Exit the application
+
+                            ''')
+            choise = int(input('Select command: '))
+            if choise == 1:
+                self.search_actor()
+            elif choise == 2:
+                self.search_year()
+            elif choise == 3:
+                self.search_category()
+            elif choise == 4:
+                self.most_common_queries()
+            elif choise == 5:
+                self.show_history()
+            elif choise == 6:
+                self.db.close()
+                self.tracker.close()
+                break
+            else:
+                print('Invalid input')
+
+
+if __name__ == '__main__':
+    app = App()
     try:
-        choise_select = int(input('\nSelect sampling option: '))
-        if choise_select < 1 or choise_select > len(sampling_options):
-            raise ValueError('Expected number within acceptable values')
-
-        if choise_select == 1:
-            find_by_actor(cursor)
-            return True
-
-        if choise_select == 2:
-            find_by_genre(cursor)
-            return True
-
-        if choise_select == 3:
-            find_by_year(cursor)
-            return True
-
-        if choise_select == 4:
-            show_history()
-            return True
-
-        if choise_select == 5:
-            most_common()
-            return True
-
-        if choise_select == 6:
-            print('Bye')
-            conn.close()
-            return False
-
-    except (TypeError, ValueError) as e:
-        print(f'Fail. {e}')
+        app.main()
+    finally:
+        app.close()
 
 
-def main():
-    running = True
-    while running:
-        running = sampling_filter()
 
 
-if __name__ == "__main__":
-    main()
+
+
+
+
+
+
+
+
+
+
