@@ -84,7 +84,7 @@ class Database:
                             LIMIT {limit} OFFSET {offset}
                 '''
             self.cursor.execute(base_query, (keyword, keyword, keyword))
-            return self.cursor.fetchall(), base_query
+            return self.cursor.fetchall()
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
@@ -101,7 +101,7 @@ class Database:
 
                                             '''
         self.cursor.execute(base_query, (year, category))
-        return self.cursor.fetchall(), base_query
+        return self.cursor.fetchall()
 
     def search_by_category(self, genre_name, limit=10, offset=0):
         try:
@@ -115,9 +115,35 @@ class Database:
                                                     LIMIT {limit} OFFSET {offset}
                                                 '''
             self.cursor.execute(base_query, (genre_name,))
-            return self.cursor.fetchall(), base_query
+            return self.cursor.fetchall()
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
+
+    # def search_most_common(self, pattern, limit=10, offset=0):
+    #     try:
+    #         if isinstance(pattern, str):
+    #             base_query = f'''
+    #                         SELECT title FROM sakila.film
+    #                         where release_year = %s
+    #                         limit {limit} OFFSET {offset}
+    #             '''
+    #             self.cursor.execute(base_query, (pattern,))
+    #             return self.cursor.fetchall()
+    #         elif isinstance(pattern, list):
+    #             base_query = f'''
+    #                     SELECT f.title FROM sakila.film_category fcat
+    #                     inner join category cat
+    #                     on fcat.category_id = cat.category_id
+    #                     inner join film f
+    #                     on f.film_id = fcat.film_id
+    #                     where f.release_year = %s and cat.name = %s
+    #                     limit {limit} OFFSET {offset}
+    #
+    #             '''
+    #             self.cursor.execute(base_query, (pattern[1],pattern[0]))
+    #             return self.cursor.fetchall()
+    #     except mysql.connector.Error as err:
+    #         print(f'Something went wrong ', err)
 
     def search_by_year(self, year, limit=10, offset=0):
         try:
@@ -127,7 +153,7 @@ class Database:
                                                             LIMIT {limit} OFFSET {offset}
                                             '''
             self.cursor.execute(base_query, (year,))
-            return self.cursor.fetchall(), base_query
+            return self.cursor.fetchall()
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
@@ -135,10 +161,14 @@ class Database:
     def search_info(self, film_name):
         try:
             base_query = '''
-            SELECT title, description, release_year, lng.name, rental_rate FROM sakila.film f
+            SELECT f.title, c.name, description, release_year, lng.name, rental_rate FROM sakila.film f
+            inner join film_category fc
+            on f.film_id = fc.film_id
+            inner join category c
+            on fc.category_id = c.category_id
             inner join language lng
             on f.language_id = lng.language_id
-            where title = %s;
+            where f.title = %s
             '''
             self.cursor.execute(base_query, (film_name,))
             return self.cursor.fetchall()
@@ -165,7 +195,7 @@ class App:
 
     def display(self, chat_id, results=None, pattern=None, query=None, offset=0, more=False, func=None):
         pattern_regex = r"^\s*SELECT.*%s\s*$"
-        print(pattern)
+        print(results)
         if query:
             if re.findall(pattern_regex, query, flags=re.DOTALL):
                 match = re.findall(pattern_regex, query, re.DOTALL)
@@ -178,7 +208,9 @@ class App:
 
         if more:
             method = getattr(self.db, func)
-            new_results, query = method(pattern, offset=offset)
+            new_results = method(pattern, offset=offset)
+
+
 
             if new_results:
                 self.display(chat_id, results=new_results, pattern=pattern, func=method.__name__, offset=offset)
@@ -187,7 +219,7 @@ class App:
                 self.bot.send_message(chat_id, "No more results.")
                 return
 
-        if isinstance(results, list):
+        if isinstance(results, list) or isinstance(results, tuple):
             print(results[:10])
             keyboard = InlineKeyboardMarkup(row_width=2)
             for row in results[:10]:
@@ -218,8 +250,11 @@ class App:
 
     def show_film_info(self,chat_id, film):
         print(film)
-        self.bot.send_message(chat_id, f'''---------------------\nName: {film[0][0]}\n\nDescription: \n{film[0][1]}\n
-Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n---------------------''')
+        keyboard = InlineKeyboardMarkup()
+        keyboard.add(InlineKeyboardButton(text="Return", callback_data="return"))
+        self.bot.send_message(chat_id, f'''---------------------\nName: {film[0][0]}\n\nGenre: {film[0][1]}\n\nDescription: \n{film[0][2]}\n
+Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n---------------------''', reply_markup=keyboard)
+
 
 
 
@@ -235,10 +270,10 @@ Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n--------
 
 
     def search_category(self, chat_id, category=None, year=None):
-        keyboard = InlineKeyboardMarkup(row_width=2)
+        # keyboard = InlineKeyboardMarkup(row_width=2)
         if year and category:
 
-            result, query = self.db.search_by_category_year(year, category)
+            result= self.db.search_by_category_year(year, category)
             func = self.db.search_by_category.__name__
             # self.bot.send_message(chat_id, "Select films:", reply_markup=keyboard)
             self.display(chat_id, results=result, func=func, pattern=category)
@@ -246,9 +281,9 @@ Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n--------
             return
 
         if category:
-            result, query = self.db.search_by_category(category)
+            result= self.db.search_by_category(category)
             func = self.db.search_by_category.__name__
-            self.display(chat_id, results=result, query=query, pattern=category, func=func)
+            self.display(chat_id, results=result, pattern=category, func=func)
             return
 
         if year:
@@ -290,10 +325,10 @@ Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n--------
                 # result, query = self.db.search_by_category_year(year, category)
                 # self.tracker.tracker('Category and Year', f'{category}, {year}')
             elif join_category == 'n':
-                result, query = self.db.search_by_year(year)
+                result= self.db.search_by_year(year)
                 func = self.db.search_by_year.__name__
                 self.tracker.tracker('Year', f'{year}')
-                self.display(chat_id, results=result, query=query, pattern=year, func=func)
+                self.display(chat_id, results=result, pattern=year, func=func)
             else:
                 print('Invalid input')
 
@@ -302,7 +337,7 @@ Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n--------
         keyboard = InlineKeyboardMarkup(row_width=2)
         if result:
                 for index, row in enumerate(result):
-                    keyboard.add(InlineKeyboardButton(text=f'Search by {row[0]}, Times: {row[1]}', callback_data=f'a_{index}'))
+                    keyboard.add(InlineKeyboardButton(text=f'Search by {row[0]}, Times: {row[1]}', callback_data=f'mcommon_{row[0]}'))
                 keyboard.add(InlineKeyboardButton(text=f'Return', callback_data=f'return'))
                 self.bot.send_message(chat_id, "Most common: ", reply_markup=keyboard)
 
@@ -316,44 +351,6 @@ Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n--------
     def close(self):
         self.db.connection.close()
 
-
-#     def main(self):
-#         print('Welcome!')
-#         while True:
-#             print('''
-# \t1. search actor       - Search for movies by actor
-# \t2. search year        - Search for movies by year
-# \t3. search category    - Search for movies by category
-# \t4. popular queries    - Show the most popular search queries
-# \t5. show history       - Show search history
-# \t6. quit               - Exit the application
-#
-#                             ''')
-#             choise = int(input('Select command: '))
-#             if choise == 1:
-#                 self.search_actor()
-#             elif choise == 2:
-#                 self.search_year()
-#             elif choise == 3:
-#                 self.search_category()
-#             elif choise == 4:
-#                 self.most_common_queries()
-#             elif choise == 5:
-#                 self.show_history()
-#             elif choise == 6:
-#                 self.db.close()
-#                 self.tracker.close()
-#                 break
-#             else:
-#                 print('Invalid input')
-
-
-# if __name__ == '__main__':
-#     app = App()
-#     try:
-#         app.main()
-#     finally:
-#         app.close()
 
 
 

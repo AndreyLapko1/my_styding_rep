@@ -94,6 +94,36 @@ def callback_inline(call):
         print(film)
 
 
+    elif call.data.startswith('mcommon_'):
+        pattern = call.data.split('_')[1]
+        if ', ' in pattern:
+            print('a')
+            func = app.db.search_by_category_year.__name__
+            pattern = pattern.split(', ')
+            result = app.db.search_by_category_year(pattern[1], pattern[0])
+            app.display(call.message.chat.id, results=result, func=func)
+        else:
+            try:
+                if isinstance(int(pattern), int):
+                    func = app.db.search_by_year.__name__
+                    result = app.db.search_by_year(pattern)
+                    app.display(call.message.chat.id, pattern=pattern,results=result, func=func)
+            except ValueError:
+                if isinstance(pattern, str):
+                    print('aaa')
+                    func = app.db.search_by_category.__name__
+                    result = app.db.search_by_category(pattern)
+                    app.display(call.message.chat.id, pattern=pattern, results=result, func=func)
+
+        # if ', ' in pattern:
+        #     pattern = pattern.split(', ')
+        #     result = app.db.search_most_common(pattern)
+        #     app.display(call.message.chat.id, result, func=func)
+        # elif isinstance(pattern, str):
+        #     result = app.db.search_most_common(pattern)
+        #     app.display(call.message.chat.id, result, func=func)
+
+
     elif call.data.startswith('s/'):
         pattern = call.data.split('/')[1]
         func = call.data.split('/')[2]
