@@ -18,8 +18,8 @@ def start_message(message):
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
     button3 = InlineKeyboardButton('Поиск по ключевому слову', callback_data='btn3')
     button4 = InlineKeyboardButton('Просмотр 5 самых популярных запросов', callback_data='btn4')
-    button5 = InlineKeyboardButton('Просмотр истории', callback_data='btn5')
-    keyboard.add(button1, button2, button3, button4, button5)
+    # button5 = InlineKeyboardButton('Просмотр истории', callback_data='btn5')
+    keyboard.add(button1, button2, button3, button4)
     bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
 
 
@@ -38,8 +38,8 @@ def callback_inline(call):
     elif call.data == 'btn4':
         app.most_common_queries(call.message.chat.id)
 
-    elif call.data == 'btn5':
-        app.show_history(call.message.chat.id)
+    # elif call.data == 'btn5':
+    #     app.show_history(call.message.chat.id)
 
 
     elif call.data.startswith('add_category:'):
@@ -84,6 +84,15 @@ def callback_inline(call):
 
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
+
+
+    elif call.data.startswith('film_'):
+        film = call.data.split('_')[1]
+        result = app.db.search_info(film)
+        if result:
+            app.show_film_info(call.message.chat.id,result)
+        print(film)
+
 
     elif call.data.startswith('s/'):
         pattern = call.data.split('/')[1]

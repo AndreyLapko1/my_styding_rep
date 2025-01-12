@@ -132,6 +132,20 @@ class Database:
             print(f'Something went wrong ', err)
 
 
+    def search_info(self, film_name):
+        try:
+            base_query = '''
+            SELECT title, description, release_year, lng.name, rental_rate FROM sakila.film f
+            inner join language lng
+            on f.language_id = lng.language_id
+            where title = %s;
+            '''
+            self.cursor.execute(base_query, (film_name,))
+            return self.cursor.fetchall()
+        except mysql.connector.Error as err:
+            print(f'Something went wrong ', err)
+
+
 
     def close(self):
         self.connection.close()
@@ -166,7 +180,6 @@ class App:
             method = getattr(self.db, func)
             new_results, query = method(pattern, offset=offset)
 
-
             if new_results:
                 self.display(chat_id, results=new_results, pattern=pattern, func=method.__name__, offset=offset)
                 return
@@ -174,12 +187,11 @@ class App:
                 self.bot.send_message(chat_id, "No more results.")
                 return
 
-
-
         if isinstance(results, list):
             print(results[:10])
             keyboard = InlineKeyboardMarkup(row_width=2)
             for row in results[:10]:
+                print(row[0])
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
 
 
@@ -202,6 +214,13 @@ class App:
         else:
             print("Results is not a list:", results)
             self.bot.send_message(chat_id, "Error: Results are not in the correct format.")
+
+
+    def show_film_info(self,chat_id, film):
+        print(film)
+        self.bot.send_message(chat_id, f'''---------------------\nName: {film[0][0]}\n\nDescription: \n{film[0][1]}\n
+Release year: {film[0][2]}\n\nLanguage: {film[0][3]}Rate: {film[0][4]}\n---------------------''')
+
 
 
     def search_by_keyword(self, chat_id, keyword):
@@ -241,7 +260,6 @@ class App:
             return
 
         else:
-            print('else')
             categories = self.db.show_categories()
             keyboard = InlineKeyboardMarkup(row_width=2)
             for index, category in enumerate(categories):
@@ -280,26 +298,20 @@ class App:
                 print('Invalid input')
 
 
-    def out_hist(self, chat_id, result, history=False):
+    def out_common(self, chat_id, result):
         keyboard = InlineKeyboardMarkup(row_width=2)
         if result:
-            if history:
-                for index, row in enumerate(result):
-                    keyboard.add(
-                        InlineKeyboardButton(text=f'Search by {row[1]}: {row[2]}', callback_data=f'a_{index}'))
-                self.bot.send_message(chat_id, "Most common", reply_markup=keyboard)
-            else:
                 for index, row in enumerate(result):
                     keyboard.add(InlineKeyboardButton(text=f'Search by {row[0]}, Times: {row[1]}', callback_data=f'a_{index}'))
-                self.bot.send_message(chat_id, "Most common", reply_markup=keyboard)
+                keyboard.add(InlineKeyboardButton(text=f'Return', callback_data=f'return'))
+                self.bot.send_message(chat_id, "Most common: ", reply_markup=keyboard)
+
+
 
     def most_common_queries(self,chat_id):
         result = self.tracker.show_most_common()
-        self.out_hist(chat_id, result)
+        self.out_common(chat_id, result)
 
-    def show_history(self,chat_id):
-        result = self.tracker.show_history()
-        self.out_hist(chat_id, result, history=True)
 
     def close(self):
         self.db.connection.close()
