@@ -1,25 +1,36 @@
 import telebot
 from telebot import types
-import main_
+import app
 
 bot = telebot.TeleBot('7855375894:AAE8jf5q-RgYlhIZRGDqwapMZiNinjpqAP0')
 
 
 
 @bot.message_handler(commands=['start'])
-def stat(message):
+def start(message):
     markup = types.ReplyKeyboardMarkup()
-    btn1 = types.KeyboardButton('Search by year')
+    btn1 = types.KeyboardButton('Поиск по году')
     markup.row(btn1)
-    btn2 = types.KeyboardButton('Search by category')
-    btn3 = types.KeyboardButton('Search by actor name')
+    btn2 = types.KeyboardButton('Поиск по категории')
+    btn3 = types.KeyboardButton('Поиск по имени актера')
     markup.row(btn2, btn3)
     bot.send_message(message.chat.id, 'Welcome to movie search', reply_markup=markup)
     bot.register_next_step_handler(message, on_click)
 
 def on_click(message):
-    if message.text == 'Search by year':
-        bot.send_message(message.chat.id, main_.App.search_year(self=message))
+    if message.text == 'Поиск по году':
+        bot.send_message(message.chat.id, 'Введите год: ')
+        bot.register_next_step_handler(message, get_year)
+
+
+def get_year(message):
+    try:
+        year = int(message.text)
+        main_.App.search_year(year)
+        bot.send_message(message.chat.id, f"Вы ввели год: {year}")
+    except ValueError:
+        bot.send_message(message.chat.id, "Это не похоже на год. Попробуйте снова.")
+        bot.register_next_step_handler(message, get_year)
 
 
 

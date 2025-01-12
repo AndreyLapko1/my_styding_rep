@@ -97,23 +97,25 @@ def callback_inline(call):
     elif call.data.startswith('mcommon_'):
         pattern = call.data.split('_')[1]
         if ', ' in pattern:
-            print('a')
             func = app.db.search_by_category_year.__name__
             pattern = pattern.split(', ')
             result = app.db.search_by_category_year(pattern[1], pattern[0])
             app.display(call.message.chat.id, results=result, func=func)
+            app.tracker.tracker('Category and Year', pattern[0] + ', ' + pattern[1])
         else:
             try:
                 if isinstance(int(pattern), int):
                     func = app.db.search_by_year.__name__
                     result = app.db.search_by_year(pattern)
                     app.display(call.message.chat.id, pattern=pattern,results=result, func=func)
+                    app.tracker.tracker('Year', pattern)
             except ValueError:
                 if isinstance(pattern, str):
-                    print('aaa')
+
                     func = app.db.search_by_category.__name__
                     result = app.db.search_by_category(pattern)
                     app.display(call.message.chat.id, pattern=pattern, results=result, func=func)
+                    app.tracker.tracker('Category', pattern)
 
         # if ', ' in pattern:
         #     pattern = pattern.split(', ')
