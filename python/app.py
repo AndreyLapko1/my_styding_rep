@@ -39,7 +39,7 @@ class QueryDatabase:
                         SELECT title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
                         GROUP BY title
                         ORDER BY counter DESC
-                        LIMIT 3'''
+                        LIMIT 5'''
         self.cursor.execute(query)
         return self.cursor.fetchall()
 
@@ -90,6 +90,7 @@ class Database:
 
 
     def search_by_category_year(self, year, category):
+
         base_query = '''
                          SELECT f.title, cat.name FROM sakila.film_category fcat
                          inner join category cat
@@ -164,10 +165,7 @@ class App:
         if more:
             method = getattr(self.db, func)
             new_results, query = method(pattern, offset=offset)
-            # offset_query = f'{self.query} LIMIT {limit} OFFSET {offset}'
-            # print(offset_query)
-            # self.db.cursor.execute(offset_query, (pattern,))
-            # new_results = self.db.cursor.fetchall()
+
 
             if new_results:
                 self.display(chat_id, results=new_results, pattern=pattern, func=method.__name__, offset=offset)
@@ -184,16 +182,12 @@ class App:
             for row in results[:10]:
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
 
-            if len(results) < 10:
-                pass
-                # self.bot.send_message(chat_id, "Я тебя люблю, малышик мой")
-                # keyboard = types.InlineKeyboardMarkup()
-                # hidden_button = types.InlineKeyboardButton(text="Hidden", callback_data="hidden")
-                # keyboard.add(hidden_button)
-                # self.bot.send_message(chat_id, "Message with hidden button.", reply_markup=keyboard)
-            if len(results) == 0:
-                self.bot.send_message(chat_id, "Нет таких фильмов :(")
-                return
+
+            if len(results) < 10 or len(results) == 0:
+                keyboard.add(InlineKeyboardButton(text=f'Return', callback_data=f'return'))
+                if len(results) == 0:
+                    self.bot.send_message(chat_id, "Нет таких фильмов :(", reply_markup=keyboard)
+                    return
 
 
             self.bot.send_message(chat_id, "Selected films:", reply_markup=keyboard)
@@ -222,23 +216,36 @@ class App:
 
 
     def search_category(self, chat_id, category=None, year=None):
-        if (year and category) or category:
-            kboard = InlineKeyboardMarkup(row_width=2)
-            if category:
-                result, query = self.db.search_by_category(category)
-                func = self.db.search_by_category.__name__
-                if year and category:
-                    result, query = self.db.search_by_category_year(year,category)
-                # self.bot.send_message(chat_id, "Select films:", reply_markup=kboard)
-                self.display(chat_id, results=result, func=func, pattern=category)
-                return
-            else:
-                self.bot.send_message(chat_id, "No results found")
-        else:
+        keyboard = InlineKeyboardMarkup(row_width=2)
+        if year and category:
+
+            result, query = self.db.search_by_category_year(year, category)
+            func = self.db.search_by_category.__name__
+            # self.bot.send_message(chat_id, "Select films:", reply_markup=keyboard)
+            self.display(chat_id, results=result, func=func, pattern=category)
+            self.tracker.tracker('Category and Year', category + ', ' + str(year))
+            return
+
+        if category:
+            result, query = self.db.search_by_category(category)
+            func = self.db.search_by_category.__name__
+            self.display(chat_id, results=result, query=query, pattern=category, func=func)
+            return
+
+        if year:
             categories = self.db.show_categories()
             keyboard = InlineKeyboardMarkup(row_width=2)
             for index, category in enumerate(categories):
                 keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'category_{index}'))
+            self.bot.send_message(chat_id, "Select category:", reply_markup=keyboard)
+            return
+
+        else:
+            print('else')
+            categories = self.db.show_categories()
+            keyboard = InlineKeyboardMarkup(row_width=2)
+            for index, category in enumerate(categories):
+                keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'onlyctg_{index}'))
             self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
 
         # else:
@@ -261,9 +268,9 @@ class App:
             return year
         else:
             if join_category == 'y':
-                category = self.search_category(chat_id)
-                result, query = self.db.search_by_category_year(year, category)
-                self.tracker.tracker('Category and Year', f'{category}, {year}')
+                self.search_category(chat_id, year=year)
+                # result, query = self.db.search_by_category_year(year, category)
+                # self.tracker.tracker('Category and Year', f'{category}, {year}')
             elif join_category == 'n':
                 result, query = self.db.search_by_year(year)
                 func = self.db.search_by_year.__name__
@@ -272,50 +279,61 @@ class App:
             else:
                 print('Invalid input')
 
-    def most_common_queries(self):
-        result = self.tracker.show_most_common()
-        if result:
-            for index, row in enumerate(result):
-                print(f'{index + 1}. Search by {row[0].capitalize()}: {row[1]} times')
 
-    def show_history(self):
-        result = self.tracker.show_history()
+    def out_hist(self, chat_id, result, history=False):
+        keyboard = InlineKeyboardMarkup(row_width=2)
         if result:
-            for index, row in enumerate(result):
-                print(f'\t{index + 1}. Search by {row[1]}: {row[2].capitalize()}')
+            if history:
+                for index, row in enumerate(result):
+                    keyboard.add(
+                        InlineKeyboardButton(text=f'Search by {row[1]}: {row[2]}', callback_data=f'a_{index}'))
+                self.bot.send_message(chat_id, "Most common", reply_markup=keyboard)
+            else:
+                for index, row in enumerate(result):
+                    keyboard.add(InlineKeyboardButton(text=f'Search by {row[0]}, Times: {row[1]}', callback_data=f'a_{index}'))
+                self.bot.send_message(chat_id, "Most common", reply_markup=keyboard)
+
+    def most_common_queries(self,chat_id):
+        result = self.tracker.show_most_common()
+        self.out_hist(chat_id, result)
+
+    def show_history(self,chat_id):
+        result = self.tracker.show_history()
+        self.out_hist(chat_id, result, history=True)
+
     def close(self):
         self.db.connection.close()
 
 
-    def main(self):
-        print('Welcome!')
-        while True:
-            print('''
-\t1. search actor       - Search for movies by actor
-\t2. search year        - Search for movies by year
-\t3. search category    - Search for movies by category
-\t4. popular queries    - Show the most popular search queries
-\t5. show history       - Show search history
-\t6. quit               - Exit the application
-
-                            ''')
-            choise = int(input('Select command: '))
-            if choise == 1:
-                self.search_actor()
-            elif choise == 2:
-                self.search_year()
-            elif choise == 3:
-                self.search_category()
-            elif choise == 4:
-                self.most_common_queries()
-            elif choise == 5:
-                self.show_history()
-            elif choise == 6:
-                self.db.close()
-                self.tracker.close()
-                break
-            else:
-                print('Invalid input')
+#     def main(self):
+#         print('Welcome!')
+#         while True:
+#             print('''
+# \t1. search actor       - Search for movies by actor
+# \t2. search year        - Search for movies by year
+# \t3. search category    - Search for movies by category
+# \t4. popular queries    - Show the most popular search queries
+# \t5. show history       - Show search history
+# \t6. quit               - Exit the application
+#
+#                             ''')
+#             choise = int(input('Select command: '))
+#             if choise == 1:
+#                 self.search_actor()
+#             elif choise == 2:
+#                 self.search_year()
+#             elif choise == 3:
+#                 self.search_category()
+#             elif choise == 4:
+#                 self.most_common_queries()
+#             elif choise == 5:
+#                 self.show_history()
+#             elif choise == 6:
+#                 self.db.close()
+#                 self.tracker.close()
+#                 break
+#             else:
+#                 print('Invalid input')
 
 
 # if __name__ == '__main__':

@@ -1,10 +1,10 @@
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from app import App
-from app import Database, QueryDatabase
 
 
-token = '7940666329:AAHdyPOsxVksG6mPhGWcFrO0V9vAMX7-1Eg'
+
+token = '8138954897:AAHMhbS42ArDh30dMhMpuiacmRz0CloOwxs'
 bot = telebot.TeleBot(token)
 app = App(bot)
 
@@ -13,7 +13,6 @@ app = App(bot)
 def start_message(message):
 
     keyboard = InlineKeyboardMarkup(row_width=2)
-
 
     button1 = InlineKeyboardButton('Поиск по году', callback_data='btn1')
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
@@ -36,6 +35,12 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
         bot.register_next_step_handler(call.message, handle_keyword)
 
+    elif call.data == 'btn4':
+        app.most_common_queries(call.message.chat.id)
+
+    elif call.data == 'btn5':
+        app.show_history(call.message.chat.id)
+
 
     elif call.data.startswith('add_category:'):
         bot.answer_callback_query(call.id)
@@ -45,10 +50,24 @@ def callback_inline(call):
 
     elif call.data == 'No':
         year = user_states.get(call.message.chat.id)
-        bot.send_message(call.message.chat.id, f'{year}')
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, f'Фильмы по {year} году: ')
         app.search_year(call.message.chat.id, year, join_category='n')
+
+    elif call.data == 'return':
+        start_message(call.message)
+
+
+
+    elif call.data.startswith('onlyctg_'):
+        category_index = int(call.data.split('_')[1])
+        categories = app.db.show_categories()
+        if category_index < len(categories):
+            selected_category = categories[category_index][1]
+            app.search_category(call.message.chat.id, selected_category)
+        else:
+            bot.send_message(call.message.chat.id, "Invalid category selected.")
+
 
     elif call.data.startswith('category_'):
         category_index = int(call.data.split('_')[1])
@@ -58,7 +77,7 @@ def callback_inline(call):
             if year:
                 selected_category = categories[category_index][1]
                 bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
-                app.search_category(call.message.chat.id, selected_category ,year)
+                app.search_category(call.message.chat.id, category=selected_category ,year=year)
             else:
                 selected_category = categories[category_index][1]
                 app.search_category(call.message.chat.id, selected_category)
@@ -100,7 +119,7 @@ def handle_year(message):
 
 def handle_keyword(message):
     keyword = message.text
-    user_states[message.chat.id] = keyword
+    # user_states[message.chat.id] = keyword
     bot.send_message(message.chat.id, f'Слово \'{keyword}\' принято!')
     app.search_by_keyword(message.chat.id, keyword)
 
