@@ -1,10 +1,12 @@
 import telebot
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
 from app import App
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
-
-token = '8138954897:AAHMhbS42ArDh30dMhMpuiacmRz0CloOwxs'
+token = os.getenv("token")
 bot = telebot.TeleBot(token)
 app = App(bot)
 
@@ -12,14 +14,21 @@ app = App(bot)
 @bot.message_handler(commands=['start'])
 def start_message(message):
 
-    keyboard = InlineKeyboardMarkup(row_width=2)
+    inline_keyboard = InlineKeyboardMarkup(row_width=2)
 
     button1 = InlineKeyboardButton('Поиск по году', callback_data='btn1')
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
     button3 = InlineKeyboardButton('Поиск по ключевому слову', callback_data='btn3')
     button4 = InlineKeyboardButton('Просмотр 5 самых популярных запросов', callback_data='btn4')
-    keyboard.add(button1, button2, button3, button4)
-    bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=keyboard)
+    inline_keyboard.add(button1, button2, button3, button4)
+    # bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=inline_keyboard)
+
+    reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
+    exit_button = KeyboardButton("Выход")
+    reply_keyboard.add(exit_button)
+
+    bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=inline_keyboard)
+    bot.send_message(message.chat.id, 'Для выхода нажмите кнопку:', reply_markup=reply_keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: True)
@@ -114,15 +123,6 @@ def callback_inline(call):
                     app.display(call.message.chat.id, pattern=pattern, results=result, func=func)
                     app.tracker.tracker('Category', pattern)
 
-        # if ', ' in pattern:
-        #     pattern = pattern.split(', ')
-        #     result = app.db.search_most_common(pattern)
-        #     app.display(call.message.chat.id, result, func=func)
-        # elif isinstance(pattern, str):
-        #     result = app.db.search_most_common(pattern)
-        #     app.display(call.message.chat.id, result, func=func)
-
-
     elif call.data.startswith('s/'):
         pattern = call.data.split('/')[1]
         func = call.data.split('/')[2]
@@ -133,7 +133,12 @@ def callback_inline(call):
     elif call.data == 'dontshow':
         start_message(call.message)
 
-
+@bot.message_handler(func=lambda message: message.text == "Выход")
+def exit_func(message):
+    bot.send_message(message.chat.id, 'Выход. Bye')
+    app.db.close()
+    app.tracker.close()
+    bot.stop_polling()
 
 
 

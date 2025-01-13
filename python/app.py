@@ -148,10 +148,6 @@ class Database:
     def close(self):
         self.connection.close()
 
-
-
-
-
 class App:
     def __init__(self, bot):
         self.bot = bot
