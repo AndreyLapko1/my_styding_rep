@@ -41,6 +41,7 @@ def callback_inline(call):
         sys.exit()
 
 
+
     elif call.data == 'btn1':
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
