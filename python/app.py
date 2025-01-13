@@ -1,20 +1,11 @@
-# import mysql.connector
-# import os
-# from dotenv import load_dotenv
-# import re
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database import QueryDatabase, Database
-
-
-
-
-
+from database import QueryDatabaseWrite, Database
 
 class App:
     def __init__(self, bot):
         self.bot = bot
         self.db = Database()
-        self.tracker = QueryDatabase()
+        self.tracker = QueryDatabaseWrite()
         self.query = None
 
 
