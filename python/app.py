@@ -27,11 +27,6 @@ class QueryDatabase:
             print(f'Something went wrong ', err)
 
 
-    def show_history(self):
-        query = 'select * from requests'
-        self.cursor.execute(query)
-        return  self.cursor.fetchall()
-
     def show_most_common(self):
         query = '''
                         SELECT title, COUNT(*) AS counter FROM `290724-ptm_fd_Andrey_Lapko`.requests
@@ -46,7 +41,7 @@ class QueryDatabase:
 
 
 
-
+#sakila
 class Database:
     def __init__(self):
         load_dotenv()
@@ -116,38 +111,14 @@ class Database:
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
 
-    # def search_most_common(self, pattern, limit=10, offset=0):
-    #     try:
-    #         if isinstance(pattern, str):
-    #             base_query = f'''
-    #                         SELECT title FROM sakila.film
-    #                         where release_year = %s
-    #                         limit {limit} OFFSET {offset}
-    #             '''
-    #             self.cursor.execute(base_query, (pattern,))
-    #             return self.cursor.fetchall()
-    #         elif isinstance(pattern, list):
-    #             base_query = f'''
-    #                     SELECT f.title FROM sakila.film_category fcat
-    #                     inner join category cat
-    #                     on fcat.category_id = cat.category_id
-    #                     inner join film f
-    #                     on f.film_id = fcat.film_id
-    #                     where f.release_year = %s and cat.name = %s
-    #                     limit {limit} OFFSET {offset}
-    #
-    #             '''
-    #             self.cursor.execute(base_query, (pattern[1],pattern[0]))
-    #             return self.cursor.fetchall()
-    #     except mysql.connector.Error as err:
-    #         print(f'Something went wrong ', err)
+
 
     def search_by_year(self, year, limit=10, offset=0):
         try:
             base_query = f'''
-                                                            SELECT title FROM sakila.film
-                                                            where release_year = %s
-                                                            LIMIT {limit} OFFSET {offset}
+            SELECT title FROM sakila.film
+            where release_year = %s
+            LIMIT {limit} OFFSET {offset}
                                             '''
             self.cursor.execute(base_query, (year,))
             return self.cursor.fetchall()
@@ -190,24 +161,20 @@ class App:
 
 
 
-    def display(self, chat_id, results=None, pattern=None, query=None, offset=0, more=False, func=None):
-        pattern_regex = r"^\s*SELECT.*%s\s*$"
-        print(results)
-        if query:
-            if re.findall(pattern_regex, query, flags=re.DOTALL):
-                match = re.findall(pattern_regex, query, re.DOTALL)
-                cleaned_query = match[0]
-                self.query = cleaned_query
-                # print(cleaned_query, 'это из очистки')
-            else:
-                self.query = query
-                # print(self.query, 'это из else')
+    def display(self, chat_id, results=None, pattern=None,  offset=0, more=False, func=None):
+        # if query:
+        #     if re.findall(pattern_regex, query, flags=re.DOTALL):
+        #         print(self.query)
+        #         match = re.findall(pattern_regex, query, re.DOTALL)
+        #         cleaned_query = match[0]
+        #         self.query = cleaned_query
+        #     else:
+        #         self.query = query
+
 
         if more:
             method = getattr(self.db, func)
             new_results = method(pattern, offset=offset)
-
-
 
             if new_results:
                 self.display(chat_id, results=new_results, pattern=pattern, func=method.__name__, offset=offset)
@@ -218,7 +185,7 @@ class App:
 
         if isinstance(results, list) or isinstance(results, tuple):
             print(results[:10])
-            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard = InlineKeyboardMarkup()
             for row in results[:10]:
                 print(row[0])
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
@@ -234,7 +201,7 @@ class App:
             self.bot.send_message(chat_id, "Selected films:", reply_markup=keyboard)
 
             if len(results) >= 10:
-                show_more_keyboard = InlineKeyboardMarkup(row_width=2)
+                show_more_keyboard = InlineKeyboardMarkup()
                 print(offset)
                 show_more_keyboard.add(InlineKeyboardButton(text="Yes", callback_data=f"s/{pattern}/{func}/{offset}"))
                 show_more_keyboard.add(InlineKeyboardButton(text="No", callback_data="dontshow"))
@@ -267,12 +234,10 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
 
 
     def search_category(self, chat_id, category=None, year=None):
-        # keyboard = InlineKeyboardMarkup(row_width=2)
         if year and category:
 
             result= self.db.search_by_category_year(year, category)
             func = self.db.search_by_category.__name__
-            # self.bot.send_message(chat_id, "Select films:", reply_markup=keyboard)
             self.display(chat_id, results=result, func=func, pattern=category)
             self.tracker.tracker('Category and Year', category + ', ' + str(year))
             return
@@ -285,7 +250,7 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
 
         if year:
             categories = self.db.show_categories()
-            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard = InlineKeyboardMarkup()
             for index, category in enumerate(categories):
                 keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'category_{index}'))
             self.bot.send_message(chat_id, "Select category:", reply_markup=keyboard)
@@ -293,25 +258,10 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
 
         else:
             categories = self.db.show_categories()
-            keyboard = InlineKeyboardMarkup(row_width=2)
+            keyboard = InlineKeyboardMarkup()
             for index, category in enumerate(categories):
                 keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'onlyctg_{index}'))
             self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
-
-        # else:
-        #     join_year = input('Do you want to join year? (y/n): ')
-        #     if join_year == 'y':
-        #         year = self.search_year(join=True)
-        #         result = self.db.search_by_category_year(year, categories[select_category - 1][1])
-        #         self.tracker.tracker('Category and Year', f'{categories[select_category - 1][1]}, {year}')
-        #         self.display(*result)
-        #     elif join_year == 'n':
-        #             result, query = self.db.search_by_category(categories[select_category - 1][1])
-        #             self.tracker.tracker('Category', f'{categories[select_category - 1][1]}')
-        #             self.display(result, query=query, pattern=categories[select_category - 1][1])
-        #     else:
-        #         print('Invalid input')
-
 
     def search_year(self, chat_id, year, join=False, join_category=None):
         if join:
@@ -319,8 +269,6 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
         else:
             if join_category == 'y':
                 self.search_category(chat_id, year=year)
-                # result, query = self.db.search_by_category_year(year, category)
-                # self.tracker.tracker('Category and Year', f'{category}, {year}')
             elif join_category == 'n':
                 result= self.db.search_by_year(year)
                 func = self.db.search_by_year.__name__
@@ -331,7 +279,7 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
 
 
     def out_common(self, chat_id, result):
-        keyboard = InlineKeyboardMarkup(row_width=2)
+        keyboard = InlineKeyboardMarkup()
         if result:
                 for index, row in enumerate(result):
                     keyboard.add(InlineKeyboardButton(text=f'Search by {row[0]}, Times: {row[1]}', callback_data=f'mcommon_{row[0]}'))
