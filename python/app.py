@@ -1,14 +1,12 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from database import QueryDatabaseWrite, Database
+from database import QueryDatabaseWrite, FilmDatabase
 
 class App:
     def __init__(self, bot):
         self.bot = bot
-        self.db = Database()
+        self.db = FilmDatabase()
         self.tracker = QueryDatabaseWrite()
         self.query = None
-
-
 
     def display(self, chat_id, results=None, pattern=None,  offset=0, more=False, func=None):
         keyboard = InlineKeyboardMarkup()
@@ -30,7 +28,6 @@ class App:
             for row in results[:10]:
                 print(row[0])
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
-
 
             if len(results) < 10 or len(results) == 0:
                 keyboard.add(InlineKeyboardButton(text=f'Return', callback_data=f'return'))
@@ -57,7 +54,7 @@ class App:
         print(film)
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton(text="Return", callback_data="return"))
-        self.bot.send_message(chat_id, f'''---------------------\nName: {film[0][0]}\n\nGenre: {film[0][1]}\n\nDescription: \n{film[0][2]}\n
+        self.bot.send_message(chat_id, f'''---------------------\nName: <b>{film[0][0]}</b>\n\nGenre: {film[0][1]}\n\nDescription: \n{film[0][2]}\n
 Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n---------------------''', reply_markup=keyboard)
 
 
@@ -103,6 +100,7 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
             for index, category in enumerate(categories):
                 keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'onlyctg_{index}'))
             self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
+
 
     def search_year(self, chat_id, year, join=False, join_category=None):
         if join:
