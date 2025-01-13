@@ -34,10 +34,7 @@ class QueryDatabaseWrite:
     def close(self):
         self.connection.close()
 
-
-
-
-class Database:
+class FilmDatabase:
     def __init__(self):
         load_dotenv()
         try:

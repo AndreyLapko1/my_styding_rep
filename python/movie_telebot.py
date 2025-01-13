@@ -6,11 +6,10 @@ import os
 from dotenv import load_dotenv
 
 load_dotenv()
-
 token = os.getenv("token")
-
 bot = telebot.TeleBot(token)
 app = App(bot)
+user_states = {}
 
 
 @bot.message_handler(commands=['start'])
@@ -26,7 +25,6 @@ def start_message(message):
     inline_keyboard.add(button1, button2, button3, button4, exit_button)
     bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=inline_keyboard)
 
-
 def close_resources():
     app.db.close()
     app.tracker.close()
@@ -35,39 +33,20 @@ def close_resources():
 def callback_inline(call):
     if call.data == 'exit_button':
         bot.answer_callback_query(call.id)
-        app.db.close()
-        app.tracker.close()
+        bot.send_message(call.message.chat.id, f'Bye!')
         close_resources()
         sys.exit()
-
-
 
     elif call.data == 'btn1':
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
     elif call.data == 'btn2':
         app.search_category(call.message.chat.id)
-
     elif call.data == 'btn3':
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
         bot.register_next_step_handler(call.message, handle_keyword)
-
     elif call.data == 'btn4':
         app.most_common_queries(call.message.chat.id)
-
-    if call.data == 'exit_button':
-        bot.send_message(call.message.chat.id, 'Bye')
-        bot.answer_callback_query(call.id)
-        app.db.close()
-        app.tracker.close()
-        bot.polling(none_stop=False)
-        bot.stop_polling()
-        sys.exit()
-
-
-
-
-
 
     elif call.data.startswith('add_category:'):
         bot.answer_callback_query(call.id)
@@ -93,7 +72,6 @@ def callback_inline(call):
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
 
-
     elif call.data.startswith('category_'):
         category_index = int(call.data.split('_')[1])
         categories = app.db.show_categories()
@@ -109,7 +87,6 @@ def callback_inline(call):
 
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
-
 
     elif call.data.startswith('film_'):
         film = call.data.split('_')[1]
@@ -153,8 +130,6 @@ def callback_inline(call):
 
 
 
-user_states = {}
-
 def handle_year(message):
     try:
         keyboard = InlineKeyboardMarkup(row_width=2)
@@ -179,16 +154,6 @@ def handle_keyword(message):
         else:
             bot.send_message(message.chat.id, 'Вы ввели число. Введите слово: ')
             bot.register_next_step_handler(message, handle_keyword)
-
-
-
-
-
-
-
-
-
-
 
 
 
