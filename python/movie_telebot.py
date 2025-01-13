@@ -1,5 +1,6 @@
 import telebot
-from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton
+from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
+import sys
 from app import App
 import os
 from dotenv import load_dotenv
@@ -21,20 +22,26 @@ def start_message(message):
     button2 = InlineKeyboardButton('Поиск по жанру', callback_data='btn2')
     button3 = InlineKeyboardButton('Поиск по ключевому слову', callback_data='btn3')
     button4 = InlineKeyboardButton('Просмотр 5 самых популярных запросов', callback_data='btn4')
-    inline_keyboard.add(button1, button2, button3, button4)
-    # bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=inline_keyboard)
-
-    reply_keyboard = ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=False)
-    exit_button = KeyboardButton("Выход")
-    reply_keyboard.add(exit_button)
-
+    exit_button = InlineKeyboardButton('Выход', callback_data='exit_button')
+    inline_keyboard.add(button1, button2, button3, button4, exit_button)
     bot.send_message(message.chat.id, 'Выберите действие:', reply_markup=inline_keyboard)
-    bot.send_message(message.chat.id, 'Для выхода нажмите кнопку:', reply_markup=reply_keyboard)
 
+
+def close_resources():
+    app.db.close()
+    app.tracker.close()
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
-    if call.data == 'btn1':
+    if call.data == 'exit_button':
+        bot.answer_callback_query(call.id)
+        app.db.close()
+        app.tracker.close()
+        close_resources()
+        sys.exit()
+
+
+    elif call.data == 'btn1':
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
     elif call.data == 'btn2':
@@ -46,6 +53,17 @@ def callback_inline(call):
 
     elif call.data == 'btn4':
         app.most_common_queries(call.message.chat.id)
+
+    if call.data == 'exit_button':
+        bot.send_message(call.message.chat.id, 'Bye')
+        bot.answer_callback_query(call.id)
+        app.db.close()
+        app.tracker.close()
+        bot.polling(none_stop=False)
+        bot.stop_polling()
+        sys.exit()
+
+
 
 
 
@@ -64,8 +82,6 @@ def callback_inline(call):
 
     elif call.data == 'return':
         start_message(call.message)
-
-
 
     elif call.data.startswith('onlyctg_'):
         category_index = int(call.data.split('_')[1])
@@ -134,14 +150,6 @@ def callback_inline(call):
     elif call.data == 'dontshow':
         start_message(call.message)
 
-@bot.message_handler(func=lambda message: message.text == "Выход")
-def exit_func(message):
-    bot.send_message(message.chat.id, 'Выход. Bye')
-    app.db.close()
-    app.tracker.close()
-    bot.stop_polling()
-
-
 
 
 user_states = {}
@@ -176,10 +184,14 @@ def handle_keyword(message):
 
 
 
-bot.polling(none_stop=True)
 
 
 
 
+
+
+
+if __name__ == '__main__':
+    bot.polling(none_stop=True)
 
 
