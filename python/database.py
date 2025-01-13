@@ -2,12 +2,7 @@ import mysql.connector
 import os
 from dotenv import load_dotenv
 
-
-
-
-
-
-class QueryDatabase:
+class QueryDatabaseWrite:
     def __init__(self):
         load_dotenv()
         self.connection = mysql.connector.connect(
