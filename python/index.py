@@ -1,5 +1,6 @@
-import keyboard
+
 import time
+import re
 
 # class History:
 #     def __init__(self):
@@ -40,24 +41,49 @@ import time
 # cursor = conn.cursor()
 
 
-from collections import Counter
+# from collections import Counter
+#
+# # Исходный список списков
+# data = [
+#     [1, 'search by actor', 'NICK'],
+#     [1, 'search by actor', 'NICK'],
+#     [3, 'search by year', '2003'],
+#     [2, 'search by genre', 'Children']
+# ]
+#
+# # Извлекаем первые элементы каждого внутреннего списка
+# first_elements = [item[0] for item in data]
+#
+# # Подсчитываем количество вхождений каждого элемента
+# counter = Counter(first_elements)
+#
+# # Находим наиболее частый элемент
+# most_common_element, count = counter.most_common(1)[0]
+#
+# print(f'Наиболее частый первый элемент: {most_common_element}, встречается {count} раз(а).')
 
-# Исходный список списков
-data = [
-    [1, 'search by actor', 'NICK'],
-    [1, 'search by actor', 'NICK'],
-    [3, 'search by year', '2003'],
-    [2, 'search by genre', 'Children']
-]
 
-# Извлекаем первые элементы каждого внутреннего списка
-first_elements = [item[0] for item in data]
+import re
 
-# Подсчитываем количество вхождений каждого элемента
-counter = Counter(first_elements)
+# Строка с двумя запросами
+query = """
+SELECT title FROM sakila.film
+where release_year = %s
 
-# Находим наиболее частый элемент
-most_common_element, count = counter.most_common(1)[0]
+SELECT title FROM sakila.film
+where release_year = %s
+"""
 
-print(f'Наиболее частый первый элемент: {most_common_element}, встречается {count} раз(а).')
+# Регулярное выражение для захвата первого запроса
+pattern = r"SELECT.*?%s"
+
+# Ищем первый запрос
+match = re.search(pattern, query, re.DOTALL)
+
+if match:
+    # Извлекаем первый запрос
+    extracted_query = match.group(0)
+    print("Вырванный запрос:", extracted_query)
+else:
+    print("Запрос не найден")
 
