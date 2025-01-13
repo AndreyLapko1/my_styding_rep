@@ -1,9 +1,7 @@
 import mysql.connector
 import os
 from dotenv import load_dotenv
-
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-from telebot import types
 import re
 
 
@@ -21,9 +19,9 @@ class QueryDatabase:
         self.cursor = self.connection.cursor()
 
 
-    def tracker(self, filter, pattern):
+    def tracker(self, filter_, pattern):
         try:
-            self.cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter, pattern))
+            self.cursor.execute(f'insert into requests (search_by, title) values (%s, %s)', (filter_, pattern))
             self.connection.commit()
         except mysql.connector.Error as err:
             print(f'Something went wrong ', err)
@@ -90,7 +88,6 @@ class Database:
 
 
     def search_by_category_year(self, year, category):
-
         base_query = '''
                          SELECT f.title, cat.name FROM sakila.film_category fcat
                          inner join category cat
@@ -264,9 +261,9 @@ Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n------
             return
         keyword = f'%{keyword}%'
         func = self.db.search_by_keyword.__name__
-        result, query = self.db.search_by_keyword(keyword)
+        result = self.db.search_by_keyword(keyword)
         self.tracker.tracker('Keyword', keyword)
-        self.display(chat_id, results=result, query=query, pattern=keyword, func=func)
+        self.display(chat_id, results=result, pattern=keyword, func=func)
 
 
     def search_category(self, chat_id, category=None, year=None):

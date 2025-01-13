@@ -56,6 +56,7 @@ def callback_inline(call):
 
     elif call.data == 'return':
         start_message(call.message)
+        # app.db.close()
 
 
 
@@ -159,10 +160,17 @@ def handle_year(message):
 
 
 def handle_keyword(message):
-    keyword = message.text
-    # user_states[message.chat.id] = keyword
-    bot.send_message(message.chat.id, f'Слово \'{keyword}\' принято!')
-    app.search_by_keyword(message.chat.id, keyword)
+        keyword = message.text
+        user_states[message.chat.id] = keyword
+        if not any(char.isdigit() for char in keyword):
+            bot.send_message(message.chat.id, f'Слово \'{keyword}\' принято!')
+            app.search_by_keyword(message.chat.id, keyword)
+        else:
+            bot.send_message(message.chat.id, 'Вы ввели число. Введите слово: ')
+            bot.register_next_step_handler(message, handle_keyword)
+
+
+
 
 
 
