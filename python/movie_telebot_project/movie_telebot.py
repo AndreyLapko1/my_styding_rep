@@ -1,6 +1,5 @@
 import telebot
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
-import sys
 from app import App
 import os
 from dotenv import load_dotenv

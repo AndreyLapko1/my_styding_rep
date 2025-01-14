@@ -57,7 +57,6 @@ class App:
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton(text="Return", callback_data="return"))
 
-
         film_genre = film[0][1]
         if film_genre in genre_images and isinstance(genre_images[film_genre], list):
             image_path = random.choice(genre_images[film_genre])
