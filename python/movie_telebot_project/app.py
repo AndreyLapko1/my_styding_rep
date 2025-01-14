@@ -54,9 +54,18 @@ class App:
         print(film)
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton(text="Return", callback_data="return"))
-        self.bot.send_message(chat_id, f'''---------------------\nName: <b>{film[0][0]}</b>\n\nGenre: {film[0][1]}\n\nDescription: \n{film[0][2]}\n
-Release year: {film[0][3]}\n\nLanguage: {film[0][4]}\nRate: {film[0][5]}\n---------------------''', reply_markup=keyboard)
-
+        self.bot.send_message(
+            chat_id,
+            f'''<b>🎬 Film Information</b>\n
+        🌟 <b>Name:</b> {film[0][0]}
+        🎭 <b>Genre:</b> {film[0][1]}
+        📝 <b>Description:</b> {film[0][2]}
+        📅 <b>Release Year:</b> {film[0][3]}
+        🌐 <b>Language:</b> {film[0][4]}
+        ⭐ <b>Rate:</b> {film[0][5]}''',
+            reply_markup=keyboard,
+            parse_mode='HTML'
+        )
 
 
 

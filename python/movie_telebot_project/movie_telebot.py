@@ -29,13 +29,15 @@ def close_resources():
     app.db.close()
     app.tracker.close()
 
+
 @bot.callback_query_handler(func=lambda call: True)
 def callback_inline(call):
     if call.data == 'exit_button':
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, f'Bye!')
         close_resources()
-        sys.exit()
+        bot.stop_polling()
+        os._exit(0)
 
     elif call.data == 'btn1':
         bot.send_message(call.message.chat.id, "Введите год: ")
@@ -158,6 +160,7 @@ def handle_keyword(message):
 
 
 if __name__ == '__main__':
-    bot.polling(none_stop=True)
+    bot.polling()
+
 
 
