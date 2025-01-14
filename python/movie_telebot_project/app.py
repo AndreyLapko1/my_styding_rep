@@ -1,5 +1,7 @@
 from telebot.types import InlineKeyboardButton, InlineKeyboardMarkup
 from database import QueryDatabaseWrite, FilmDatabase
+from images import genre_images
+import random
 
 class App:
     def __init__(self, bot):
@@ -54,18 +56,44 @@ class App:
         print(film)
         keyboard = InlineKeyboardMarkup()
         keyboard.add(InlineKeyboardButton(text="Return", callback_data="return"))
-        self.bot.send_message(
-            chat_id,
-            f'''<b>🎬 Film Information</b>\n
+
+
+        film_genre = film[0][1]
+        if film_genre in genre_images and isinstance(genre_images[film_genre], list):
+            image_path = random.choice(genre_images[film_genre])
+        else:
+            image_path = genre_images.get(film_genre, "C:/Users/andre/Desktop/img/default.jpg")
+
+        with open(image_path, 'rb') as img_file:
+            self.bot.send_photo(
+                chat_id,
+                img_file,
+                caption=f'''<b>🎬 Film Information</b>
         🌟 <b>Name:</b> {film[0][0]}
         🎭 <b>Genre:</b> {film[0][1]}
         📝 <b>Description:</b> {film[0][2]}
         📅 <b>Release Year:</b> {film[0][3]}
         🌐 <b>Language:</b> {film[0][4]}
         ⭐ <b>Rate:</b> {film[0][5]}''',
-            reply_markup=keyboard,
-            parse_mode='HTML'
-        )
+                reply_markup=keyboard,
+                parse_mode='HTML'
+            )
+
+
+
+
+        # self.bot.send_message(
+        #     chat_id,
+        #     f'''<b>🎬 \tFilm Information</b>\n
+        # 🌟 <b>Name:</b> {film[0][0]}
+        # 🎭 <b>Genre:</b> {film[0][1]}
+        # 📝 <b>Description:</b> {film[0][2]}
+        # 📅 <b>Release Year:</b> {film[0][3]}
+        # 🌐 <b>Language:</b> {film[0][4]}
+        # ⭐ <b>Rate:</b> {film[0][5]}''',
+        #     reply_markup=keyboard,
+        #     parse_mode='HTML'
+        # )
 
 
 
