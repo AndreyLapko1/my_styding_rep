@@ -64,17 +64,18 @@ class App:
         else:
             image_path = genre_images.get(film_genre, "C:/Users/andre/Desktop/img/default.jpg")
 
+        film_dict = {"name": film[0][0], "genre": film[0][1], "descrip": film[0][2], "year": film[0][3], "language": film[0][4], "rate": film[0][5],}
         with open(image_path, 'rb') as img_file:
             self.bot.send_photo(
                 chat_id,
                 img_file,
                 caption=f'''<b>🎬 Film Information</b>
-        🌟 <b>Name:</b> {film[0][0]}
-        🎭 <b>Genre:</b> {film[0][1]}
-        📝 <b>Description:</b> {film[0][2]}
-        📅 <b>Release Year:</b> {film[0][3]}
-        🌐 <b>Language:</b> {film[0][4]}
-        ⭐ <b>Rate:</b> {film[0][5]}''',
+        🌟 <b>Name:</b> {film_dict["name"]}
+        🎭 <b>Genre:</b> {film_dict["genre"]}
+        📝 <b>Description:</b> {film_dict["descrip"]}
+        📅 <b>Release Year:</b> {film_dict["year"]}
+        🌐 <b>Language:</b> {film_dict["language"]}
+        ⭐ <b>Rate:</b> {film_dict["rate"]}''',
                 reply_markup=keyboard,
                 parse_mode='HTML'
             )
@@ -93,7 +94,7 @@ class App:
         self.display(chat_id, results=result, pattern=keyword, func=func)
 
 
-    def search_category(self, chat_id, category, year):
+    def search_category(self, chat_id, category=None, year=None):
         if year and category:
             result= self.db.search_by_category_year(year, category)
             func = self.db.search_by_category.__name__
