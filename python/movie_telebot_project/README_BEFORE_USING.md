@@ -19,7 +19,7 @@
 ```def most_common_queries``` - Function that gets the result of popular queries sampling from the show_most_common from database.py function
 
 ## ```database.py``` - Database file.Processing movie searches and most popular queries  
-```class QueryDatabaseWrite``` - QueryDatabaseWrite class  
+```class QueryDatabaseWrite``` - Class of write database 
 ```def tracker``` - Function for tracking queries and recording them in the database
 ```def show_most_common``` - A function that searches for 5 popular queries in the database
 ```def close``` - Function for closing the connection
