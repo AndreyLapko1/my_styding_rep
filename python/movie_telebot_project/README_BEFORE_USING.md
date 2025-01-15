@@ -48,7 +48,7 @@ Create an .env file with the following parameters:
 ```host_write=```host to edit database  
 ```user_write=```bd_user  
 ```password_write=```bd_password  
-```database_write=```290724-ptm_fd_Andrey_Lapko 
+```database_write=```290724-ptm_fd_Andrey_Lapko   
 ```token```bot's token
 ### Step 3.
 Run the ```movie_telebot.py``` file
