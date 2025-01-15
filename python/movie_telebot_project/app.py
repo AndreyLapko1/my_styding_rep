@@ -8,7 +8,6 @@ class App:
         self.bot = bot
         self.db = FilmDatabase()
         self.tracker = QueryDatabaseWrite()
-        self.query = None
 
     def display(self, chat_id, results=None, pattern=None,  offset=0, more=False, func=None):
         keyboard = InlineKeyboardMarkup()
@@ -25,13 +24,15 @@ class App:
                 return
 
         if isinstance(results, list) or isinstance(results, tuple):
+            films_by_page = 10
             print(results[:10])
 
-            for row in results[:10]:
+
+            for row in results[:films_by_page]:
                 print(row[0])
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
 
-            if len(results) < 10 or len(results) == 0:
+            if len(results) < films_by_page or len(results) == 0:
                 keyboard.add(InlineKeyboardButton(text=f'Return', callback_data=f'return'))
                 if len(results) == 0:
                     self.bot.send_message(chat_id, "Нет таких фильмов :(", reply_markup=keyboard)
@@ -40,7 +41,7 @@ class App:
 
             self.bot.send_message(chat_id, "Selected films:", reply_markup=keyboard)
 
-            if len(results) >= 10:
+            if len(results) >= films_by_page:
                 show_more_keyboard = InlineKeyboardMarkup()
                 print(offset)
                 show_more_keyboard.add(InlineKeyboardButton(text="Yes", callback_data=f"s/{pattern}/{func}/{offset}"))
@@ -81,21 +82,6 @@ class App:
 
 
 
-        # self.bot.send_message(
-        #     chat_id,
-        #     f'''<b>🎬 \tFilm Information</b>\n
-        # 🌟 <b>Name:</b> {film[0][0]}
-        # 🎭 <b>Genre:</b> {film[0][1]}
-        # 📝 <b>Description:</b> {film[0][2]}
-        # 📅 <b>Release Year:</b> {film[0][3]}
-        # 🌐 <b>Language:</b> {film[0][4]}
-        # ⭐ <b>Rate:</b> {film[0][5]}''',
-        #     reply_markup=keyboard,
-        #     parse_mode='HTML'
-        # )
-
-
-
     def search_by_keyword(self, chat_id, keyword):
         if keyword.isdigit():
             print('Invalid input')
@@ -107,9 +93,8 @@ class App:
         self.display(chat_id, results=result, pattern=keyword, func=func)
 
 
-    def search_category(self, chat_id, category=None, year=None):
+    def search_category(self, chat_id, category, year):
         if year and category:
-
             result= self.db.search_by_category_year(year, category)
             func = self.db.search_by_category.__name__
             self.display(chat_id, results=result, func=func, pattern=category)
@@ -117,7 +102,7 @@ class App:
             return
 
         if category:
-            result= self.db.search_by_category(category)
+            result = self.db.search_by_category(category)
             func = self.db.search_by_category.__name__
             self.display(chat_id, results=result, pattern=category, func=func)
             return
@@ -130,18 +115,16 @@ class App:
             self.bot.send_message(chat_id, "Select category:", reply_markup=keyboard)
             return
 
-        else:
-            categories = self.db.show_categories()
-            keyboard = InlineKeyboardMarkup()
-            for index, category in enumerate(categories):
-                keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'onlyctg_{index}'))
-            self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
+
+    def search_only_ctg(self, chat_id):
+        categories = self.db.show_categories()
+        keyboard = InlineKeyboardMarkup()
+        for index, category in enumerate(categories):
+            keyboard.add(InlineKeyboardButton(text=f'{category[1]}', callback_data=f'onlyctg_{index}'))
+        self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
 
 
-    def search_year(self, chat_id, year, join=False, join_category=None):
-        if join:
-            return year
-        else:
+    def search_year(self, chat_id, year,  join_category=None):
             if join_category == 'y':
                 self.search_category(chat_id, year=year)
             elif join_category == 'n':
