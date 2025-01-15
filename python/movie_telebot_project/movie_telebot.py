@@ -42,7 +42,8 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
     elif call.data == 'btn2':
-        app.search_category(call.message.chat.id)
+        app.search_only_ctg(call.message.chat.id)
+
     elif call.data == 'btn3':
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
         bot.register_next_step_handler(call.message, handle_keyword)
