@@ -40,7 +40,16 @@
 ### Step 1.
 From the ```movie_telebot_project``` folder extract the img folder. Place it on the desktop
 ### Step 2.
-Leave the files ``app.py``, ``database.py``, ``images.py``, ``movie_telebot.py`` in the ``movie_telebot_project`` folder.
+Create an .env file with the following parameters:  
+```host=```host to sakila database  
+```user=```bd_user  
+```password=```bd_password  
+```database=```bd_sakila  
+```host_write=```host to edit database  
+```user_write=```bd_user  
+```password_write=```bd_password  
+```database_write=```290724-ptm_fd_Andrey_Lapko 
+```token```bot's token
 ### Step 3.
 Run the ```movie_telebot.py``` file
 ### Step 4.
