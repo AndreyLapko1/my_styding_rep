@@ -27,7 +27,6 @@ class App:
             films_by_page = 10
             print(results[:10])
 
-
             for row in results[:films_by_page]:
                 print(row[0])
                 keyboard.add(InlineKeyboardButton(text=f'{row[0].capitalize()}', callback_data=f'film_{row[0]}'))
@@ -94,7 +93,7 @@ class App:
         self.display(chat_id, results=result, pattern=keyword, func=func)
 
 
-    def search_category(self, chat_id, category=None, year=None):
+    def search_by_category_year(self, chat_id, category=None, year=None):
         if year and category:
             result= self.db.search_by_category_year(year, category)
             func = self.db.search_by_category.__name__
@@ -117,7 +116,7 @@ class App:
             return
 
 
-    def search_only_ctg(self, chat_id):
+    def search_only_by_ctg(self, chat_id):
         categories = self.db.show_categories()
         keyboard = InlineKeyboardMarkup()
         for index, category in enumerate(categories):
@@ -125,9 +124,9 @@ class App:
         self.bot.send_message(chat_id, "Select a category:", reply_markup=keyboard)
 
 
-    def search_year(self, chat_id, year,  join_category=None):
+    def search_by_year(self, chat_id, year, join_category=None):
             if join_category == 'y':
-                self.search_category(chat_id, year=year)
+                self.search_by_category_year(chat_id, year=year)
             elif join_category == 'n':
                 result= self.db.search_by_year(year)
                 func = self.db.search_by_year.__name__

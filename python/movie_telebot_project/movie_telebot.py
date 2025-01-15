@@ -42,7 +42,7 @@ def callback_inline(call):
         bot.send_message(call.message.chat.id, "Введите год: ")
         bot.register_next_step_handler(call.message, handle_year)
     elif call.data == 'btn2':
-        app.search_only_ctg(call.message.chat.id)
+        app.search_only_by_ctg(call.message.chat.id)
 
     elif call.data == 'btn3':
         bot.send_message(call.message.chat.id, "Введите ключевое слово")
@@ -54,13 +54,13 @@ def callback_inline(call):
         bot.answer_callback_query(call.id)
         year = call.data.split(':')[1]
         bot.send_message(call.message.chat.id, f'Выберите категорию')
-        app.search_year(call.message.chat.id, year, join_category='y')
+        app.search_by_year(call.message.chat.id, year, join_category='y')
 
     elif call.data == 'No':
         year = user_states.get(call.message.chat.id)
         bot.answer_callback_query(call.id)
         bot.send_message(call.message.chat.id, f'Фильмы по {year} году: ')
-        app.search_year(call.message.chat.id, year, join_category='n')
+        app.search_by_year(call.message.chat.id, year, join_category='n')
 
     elif call.data == 'return':
         start_message(call.message)
@@ -70,7 +70,7 @@ def callback_inline(call):
         categories = app.db.show_categories()
         if category_index < len(categories):
             selected_category = categories[category_index][1]
-            app.search_category(call.message.chat.id, selected_category)
+            app.search_by_category_year(call.message.chat.id, selected_category)
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
 
@@ -82,10 +82,10 @@ def callback_inline(call):
             if year:
                 selected_category = categories[category_index][1]
                 bot.send_message(call.message.chat.id, f'Selected: {selected_category}')
-                app.search_category(call.message.chat.id, category=selected_category ,year=year)
+                app.search_by_category_year(call.message.chat.id, category=selected_category, year=year)
             else:
                 selected_category = categories[category_index][1]
-                app.search_category(call.message.chat.id, selected_category)
+                app.search_by_category_year(call.message.chat.id, selected_category)
 
         else:
             bot.send_message(call.message.chat.id, "Invalid category selected.")
@@ -115,8 +115,8 @@ def callback_inline(call):
                     app.tracker.tracker('Year', pattern)
             except ValueError:
                 if isinstance(pattern, str):
-                    func = app.db.search_by_category.__name__
-                    result = app.db.search_by_category(pattern)
+                    func = app.db.search_by_category_year.__name__
+                    result = app.db.search_by_category_year(pattern)
                     app.display(call.message.chat.id, pattern=pattern, results=result, func=func)
                     app.tracker.tracker('Category', pattern)
 
